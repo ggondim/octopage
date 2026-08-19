@@ -53,11 +53,6 @@ jobs:
         shell: bash
         env:
           REF: ${{ github.event.inputs.ref }}
-          # install.sh resolves the ref to a SHA with `gh api`; unauthenticated
-          # that call fails, and its fallback (`tar tzf | head -1`) dies on
-          # SIGPIPE under `set -o pipefail`. Give gh a token so the fallback is
-          # never reached.
-          GH_TOKEN: ${{ steps.apptoken.outputs.token }}
         run: |
           set -euo pipefail
           curl -fsSL https://raw.githubusercontent.com/deepducks/autoducks/main/scripts/install.sh -o /tmp/autoducks-install.sh
