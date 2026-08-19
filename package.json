@@ -1,0 +1,30 @@
+{
+  "name": "octopage-monorepo",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@9.15.0",
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "scripts": {
+    "build": "pnpm -r --filter './packages/*' build",
+    "dev": "pnpm --filter octopage-template dev",
+    "site:build": "pnpm --filter octopage-template build",
+    "site:preview": "pnpm --filter octopage-template preview",
+    "sync": "pnpm --filter octopage-template sync:content",
+    "typecheck": "pnpm -r typecheck",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "cli": "pnpm --filter create-octopage dev"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^22.10.0",
+    "typescript": "^5.7.0"
+  },
+  "pnpm": {
+    "overrides": {
+      "satteri": "0.10.3"
+    }
+  }
+}

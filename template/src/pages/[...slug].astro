@@ -1,0 +1,36 @@
+---
+import { getCollection, render } from 'astro:content';
+import Content from 'octopage/layouts/Content.astro';
+import { mdxComponents } from 'octopage/components';
+import { routeForEntry, routeToSlugParam } from 'octopage';
+
+/**
+ * One catch-all route serves every page in either source mode. The entries
+ * differ in where they came from, not in how they render — which is the payoff
+ * for syncing discussions down to MDX instead of rendering them through a
+ * separate path.
+ */
+export async function getStaticPaths() {
+  const entries = await getCollection('content', ({ data }) => !data.draft);
+
+  return entries.map((entry) => ({
+    params: { slug: routeToSlugParam(routeForEntry(entry)) },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content: Body } = await render(entry);
+---
+
+<Content
+  title={entry.data.title}
+  description={entry.data.description}
+  date={entry.data.date?.toISOString()}
+  author={entry.data.author}
+  labels={entry.data.labels}
+  discussion={entry.data.discussion}
+  discussionUrl={entry.data.discussionUrl}
+>
+  <Body components={mdxComponents} />
+</Content>

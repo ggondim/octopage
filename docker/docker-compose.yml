@@ -1,0 +1,65 @@
+# Preview the *built* site the way each host will actually serve it.
+#
+# These are not dev servers — `pnpm dev` (Astro, with HMR) is what you want
+# while writing. What these catch is the class of bug that only appears after
+# the build, where the host's own semantics matter: base-path handling, trailing
+# slashes, directory indexes, 404 routing. Those differ between GitHub Pages and
+# Vercel, and both differ from `astro preview`.
+#
+#   docker compose --profile pages up      # GitHub Pages (Jekyll-derived)
+#   docker compose --profile vercel up     # Vercel
+#
+# Build first: `pnpm site:build`.
+
+name: octopage-preview
+
+services:
+  # ── GitHub Pages ─────────────────────────────────────────────────────────
+  # GitHub Pages serves through Jekyll, which is why this is the default. Even
+  # with `.nojekyll` set, the surrounding behaviour — directory indexes,
+  # 404.html, and above all the /<repo>/ path prefix on project sites — is what
+  # this reproduces. `dist/` is mounted *under* the base path rather than at the
+  # web root, because that prefix is baked into every asset URL Astro emits and
+  # serving at the root would make a broken build look fine.
+  pages:
+    profiles: ['pages']
+    image: jekyll/jekyll:4.2.2
+    working_dir: /srv/jekyll
+    command: >
+      jekyll serve
+        --skip-initial-build
+        --no-watch
+        --host 0.0.0.0
+        --port 4000
+        --destination /srv/site
+    volumes:
+      - ../template/dist:/srv/site/${OCTOPAGE_BASE:-octopage}:ro
+      - ./pages/_config.yml:/srv/jekyll/_config.yml:ro
+    ports:
+      - '4000:4000'
+    environment:
+      JEKYLL_ENV: production
+
+  # ── Vercel ───────────────────────────────────────────────────────────────
+  # Vercel serves from the web root with no base path, applies `vercel.json`
+  # (cleanUrls, trailingSlash, redirects, headers), and has its own 404
+  # handling. A site that works on Pages can still 404 here purely because of
+  # the trailing-slash rule, which is exactly what this profile is for.
+  vercel:
+    profiles: ['vercel']
+    build:
+      context: .
+      dockerfile: vercel.Dockerfile
+    working_dir: /site
+    volumes:
+      - ../template:/site
+      - vercel-node-modules:/site/node_modules
+    ports:
+      - '3000:3000'
+    environment:
+      # `vercel dev` runs fully local without a token; set one only if you want
+      # it to link to a real project.
+      VERCEL_TOKEN: ${VERCEL_TOKEN:-}
+
+volumes:
+  vercel-node-modules:

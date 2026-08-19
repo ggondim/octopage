@@ -1,0 +1,42 @@
+---
+import { getCollection } from 'astro:content';
+import { Heading, Stack, Text } from '@primer/react-brand';
+import Base from 'octopage/layouts/Base.astro';
+import { routeForEntry } from 'octopage';
+import { config } from 'octopage:config';
+
+const entries = (await getCollection('content', ({ data }) => !data.draft))
+  .filter((entry) => routeForEntry(entry) !== '/')
+  .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0));
+
+const withUrl = entries.map((entry) => ({
+  entry,
+  href: `${import.meta.env.BASE_URL.replace(/\/$/, '')}${routeForEntry(entry)}/`,
+}));
+---
+
+<Base title={config.site.title} description={config.site.description}>
+  <main class="octopage-main">
+    <Heading as="h1" size="1">{config.site.title}</Heading>
+    <Text as="p" size="400" variant="muted">{config.site.description}</Text>
+
+    <Stack direction="vertical" gap="normal" padding="none">
+      {
+        withUrl.map(({ entry, href }) => (
+          <article>
+            <Heading as="h2" size="4">
+              <a href={href}>{entry.data.title}</a>
+            </Heading>
+            {entry.data.description && (
+              <Text as="p" size="200" variant="muted">
+                {entry.data.description}
+              </Text>
+            )}
+          </article>
+        ))
+      }
+    </Stack>
+
+    {withUrl.length === 0 && <Text as="p" size="300">No content yet.</Text>}
+  </main>
+</Base>

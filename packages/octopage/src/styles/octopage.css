@@ -1,0 +1,67 @@
+/*
+ * Layout scaffolding only.
+ *
+ * Everything visual comes from Primer Brand's own tokens — this file must not
+ * introduce colours, type scales or spacing values of its own, or the site
+ * stops being "Primer Brand" and starts being a fork of it. Every value below
+ * is a `--brand-*` token the design system already publishes.
+ */
+
+body {
+  margin: 0;
+  background-color: var(--brand-color-canvas-default);
+  color: var(--brand-color-text-default);
+  font-family: var(--brand-body-fontFamily);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.octopage-main {
+  flex: 1 0 auto;
+  width: 100%;
+  max-width: var(--brand-breakpoint-large, 1280px);
+  margin-inline: auto;
+  padding-inline: var(--base-size-24);
+  padding-block: var(--base-size-48);
+  box-sizing: border-box;
+}
+
+.octopage-prose {
+  max-width: 68ch;
+}
+
+.octopage-comments {
+  max-width: 68ch;
+  margin-block-start: var(--base-size-64);
+  padding-block-start: var(--base-size-32);
+  border-block-start: var(--brand-borderWidth-thin) solid var(--brand-color-border-default);
+}
+
+/* giscus renders into an iframe it injects here; reserve height so lazy
+   loading does not shove the footer up the page after paint. */
+.octopage-comments .giscus,
+.octopage-comments .giscus-frame {
+  width: 100%;
+  min-height: 150px;
+  border: none;
+  color-scheme: normal;
+}
+
+.octopage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--base-size-8);
+  align-items: center;
+  margin-block: var(--base-size-16) var(--base-size-32);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
