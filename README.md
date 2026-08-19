@@ -5,8 +5,9 @@ and comments both live in a public GitHub repository. No CMS, no database, no
 server.
 
 - **Content** comes from two places at once: `.mdx` committed under
-  `src/content`, and the repository's **GitHub Discussions**, read live from the
-  API at build time.
+  `src/content`, prerendered at build time — and the repository's **GitHub
+  Discussions**, fetched in the reader's browser, so publishing one needs no
+  build at all.
 - **Comments** are Discussions threads rendered by [giscus](https://giscus.app).
 - **UI** is [GitHub Primer Brand](https://primer.style/brand).
 - **Deploy** targets GitHub Pages; Vercel works too, with its own `base`.
@@ -37,11 +38,26 @@ files are reviewed like any other code, they may `import` components.
 giscus pairs them on the **URL pathname**, and the giscus bot opens the thread
 when a reader first comments.
 
-### Discussions — read live from the API
+### Discussions — fetched in the browser, no build
 
-Open a discussion and it becomes a page. Nothing is committed, and nothing is
-written to disk between builds: edit the discussion on GitHub, rebuild, and the
-page changes.
+Open a discussion and it is live. Nothing is committed, no CI runs, and nothing
+on disk changes:
+
+```
+dist/ written at        18:29:29
+discussion created at   18:30:30
+page renders            title, body, components — no rebuild
+```
+
+This works because `/repos/{owner}/{repo}/discussions` answers **unauthenticated**
+and sends `access-control-allow-origin: *`. (GraphQL does not — it 403s without a
+token, which is why this used to require a build step.) The browser fetches the
+list, finds the discussion whose route matches the URL, compiles its body and
+renders it.
+
+Routing has no server, so GitHub Pages' `404.html` is the resolver: any path
+without a file lands there, and `src/pages/404.astro` mounts the island that
+works out what belongs at that address.
 
 Metadata goes in an HTML comment, invisible both in GitHub's editor and in the
 rendered discussion:
@@ -61,20 +77,33 @@ Labels and category come from the discussion itself. Routes default to
 giscus pairs these on the **discussion number** — the page *is* the discussion,
 so its comments are that discussion's comments and nothing new is ever created.
 
-#### Two limits worth knowing
+#### What this costs
+
+Being honest about the trade, since it is not free:
+
+| | committed `.mdx` | discussion |
+|---|---|---|
+| in the initial HTML | yes | no |
+| indexed by crawlers that skip JS | yes | no |
+| HTTP status | 200 | **404** (the Pages fallback) |
+| client JavaScript | none | ~217 KB gzip, mostly the MDX compiler |
+| publishing | push + build | instant |
+| rate limit | none | 60/hour per IP, cached per session |
+
+Committed content stays prerendered precisely so the site does not depend on any
+of that.
+
+#### The security boundary
 
 Anyone with a GitHub account can open a discussion in a public repository, and
-this build compiles discussion bodies as MDX — which evaluates JavaScript. So:
-
-1. **Only discussions by `OWNER`, `MEMBER` or `COLLABORATOR` are published.**
-   Those are the people who already have write access; a passer-by cannot run
-   code in your CI by opening a discussion.
-2. **Discussion bodies may not `import`.** Components are provided by name from
-   a fixed scope (`src/components/mdx.tsx`), so bodies stay readable and cannot
-   pull in arbitrary modules. Write `<Label>` directly, no import line.
+bodies are compiled as MDX — which evaluates JavaScript, here in the reader's
+browser. The defence is **`author_association`**: only discussions by `OWNER`,
+`MEMBER` or `COLLABORATOR` are rendered. That field comes from GitHub's response,
+so a visitor cannot forge it, and it narrows the risk to someone who already has
+write access — who could ship malicious JavaScript by pushing a commit anyway.
 
 Comment threads are told apart from content by the `<!-- sha1: … -->` marker
-giscus embeds, so the two can share a category without colliding.
+giscus embeds, so both can share a category without colliding.
 
 ## Configuration
 
@@ -83,9 +112,9 @@ Almost nothing. `octopage.config.ts` with `{}` is a complete configuration.
 | Fact | Where it comes from |
 |---|---|
 | Repository | the `origin` git remote, or `GITHUB_REPOSITORY` in Actions |
+| giscus repo id / category id | the public REST API — no token needed |
 | Site URL and base path | `astro.config.mjs` (`site`, `base`) |
 | Site name and tagline | `package.json` (`name`, `description`) |
-| giscus repo id and category id | the GitHub API, at build time |
 | Comment category | `Announcements` if it exists, else the first usable one |
 
 What remains is what cannot be inferred — see
@@ -178,8 +207,8 @@ API with anyway.
 src/content/        committed .mdx (blog/, pages/)
 src/components/     Primer Brand composition (.tsx)
 src/layouts/        page shells (.astro)
-src/lib/            runtime: GitHub client, loader, routing, giscus, MDX
-src/pages/          routes
+src/lib/            runtime: REST client, content filtering, routing, giscus
+src/pages/          static routes; 404.astro is the dynamic resolver
 setup/              the interactive setup — deletes itself after running
 scripts/serve.mjs   static server used by the Docker vercel profile and by tests
 docker/             preview profiles
@@ -189,10 +218,9 @@ e2e/                Playwright
 ## Requirements
 
 - Node 22+, pnpm 9+
-- A GitHub token for builds. The Discussions API is GraphQL-only and rejects
-  anonymous requests **even for public repositories**. In Actions,
-  `secrets.GITHUB_TOKEN` is enough; locally an authenticated `gh` CLI is picked
-  up automatically. Without one, build with `OCTOPAGE_OFFLINE=1`.
+- **No GitHub token.** Everything the build reads — the repository's node id and
+  its discussion categories — comes from public REST endpoints. `OCTOPAGE_OFFLINE=1`
+  skips those calls entirely, which is what CI uses.
 
 ## License
 

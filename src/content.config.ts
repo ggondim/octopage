@@ -1,16 +1,10 @@
 import { defineCollection } from 'astro:content';
 import { z } from 'zod';
 import { glob } from 'astro/loaders';
-import { discussionsLoader } from './lib/discussions-loader.ts';
-import { parseConfig } from './lib/config.ts';
-import userConfig from '../octopage.config.ts';
-
-const config = parseConfig(userConfig);
-
 /**
- * Metadata shared by both sources. Only `title` is required: a discussion is a
- * legitimate page with nothing but a title, and a committed file should not
- * have to restate what its path already says.
+ * Committed content only. Discussions are not a build-time collection: they are
+ * read in the browser, so publishing one needs no rebuild — see
+ * src/components/DiscussionPage.tsx.
  */
 const shared = {
   title: z.string(),
@@ -27,22 +21,9 @@ const shared = {
   draft: z.boolean().default(false),
 };
 
-/** Committed content: `src/content/blog`, `src/content/pages`, anything else you add. */
 const pages = defineCollection({
   loader: glob({ base: './src/content', pattern: '**/*.{md,mdx}' }),
   schema: z.object(shared),
 });
 
-/** Live content: the repository's Discussions, read at build time. */
-const discussions = defineCollection({
-  loader: discussionsLoader(config),
-  schema: z.object({
-    ...shared,
-    body: z.string(),
-    discussion: z.number(),
-    discussionUrl: z.string(),
-    upvotes: z.number().optional(),
-  }),
-});
-
-export const collections = { pages, discussions };
+export const collections = { pages };

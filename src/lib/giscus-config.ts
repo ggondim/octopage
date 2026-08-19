@@ -1,35 +1,66 @@
 import type { OctopageConfig } from './config.ts';
-import { resolveCommentsCategory, type GiscusConfig } from './giscus.ts';
-import { fetchRepositoryInfo } from './github/discussions.ts';
-import { resolveRepo } from './repo.ts';
+import { giscusAttributes } from './giscus.ts';
+import { categoriesFrom, fetchDiscussions, fetchRepoId, type RepoRef } from './discussions-rest.ts';
 
 /**
- * The giscus settings shared by every page.
+ * Resolve the giscus attributes shared by every page.
  *
- * `repoId` and `categoryId` are opaque node ids that only the API can produce,
- * which is why this needs a network round trip rather than being derivable from
- * the repo name alone.
+ * Runs at build time and needs no token: `repo_id` is the repository's
+ * `node_id` from the public REST endpoint, and each discussion carries its
+ * category's node id, so both ids are reachable anonymously.
+ *
+ * The `mapping` is left out here on purpose — it belongs to the page, not the
+ * site. A committed page pairs on `pathname`; a discussion-backed page pairs on
+ * `number` and adds its own `data-term` once the fetch resolves.
  */
-export async function giscusBaseConfig(config: OctopageConfig): Promise<Omit<GiscusConfig, 'term' | 'mapping'> | null> {
+export async function resolveGiscus(
+  repo: RepoRef,
+  config: OctopageConfig,
+): Promise<Record<string, string> | null> {
   if (process.env.OCTOPAGE_OFFLINE === '1') return null;
 
-  const repo = resolveRepo();
-  const info = await fetchRepositoryInfo(repo.owner, repo.name);
-
-  if (!info.hasDiscussionsEnabled) {
+  const { id, hasDiscussions } = await fetchRepoId(repo);
+  if (!hasDiscussions) {
     throw new Error(
       `Discussions are not enabled on ${repo.owner}/${repo.name}. ` +
         'Turn them on under Settings → General → Features.',
     );
   }
 
-  const category = resolveCommentsCategory(info.categories, config.comments);
+  const categories = categoriesFrom(await fetchDiscussions(repo));
+  if (categories.length === 0) {
+    throw new Error(
+      'No discussion categories are visible yet. REST exposes categories only through the ' +
+        'discussions that use them, so open one discussion (in the category comments should ' +
+        'live in) and build again.',
+    );
+  }
 
-  return {
+  const wanted = config.comments;
+  const category = wanted
+    ? categories.find((c) => c.name.toLowerCase() === wanted.toLowerCase())
+    : (categories.find((c) => c.name.toLowerCase() === 'announcements') ??
+       categories.find((c) => !c.is_answerable));
+
+  if (!category) {
+    throw new Error(
+      wanted
+        ? `octopage.config.ts sets comments: '${wanted}', but no discussion uses a category by that name.\n` +
+          `Visible: ${categories.map((c) => c.name).join(', ')}`
+        : 'No usable category for comments. Set `comments` in octopage.config.ts.',
+    );
+  }
+
+  // `mapping` is a required field on the type but is replaced per page; the
+  // placeholder never reaches the DOM.
+  const attrs = giscusAttributes({
     repo: `${repo.owner}/${repo.name}`,
-    repoId: info.id,
+    repoId: id,
     category: category.name,
-    categoryId: category.id,
+    categoryId: category.node_id,
+    mapping: 'pathname',
     strict: true,
-  };
+  });
+
+  return attrs;
 }

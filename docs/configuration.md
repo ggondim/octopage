@@ -10,9 +10,13 @@ complete, working configuration.
 | Repository (`owner/name`) | `GITHUB_REPOSITORY`, else the `origin` git remote | — |
 | Site URL, base path | `astro.config.mjs` → `site`, `base` | edit astro.config.mjs |
 | Site name, tagline | `package.json` → `name`, `description` | edit package.json |
-| giscus `repoId`, `categoryId` | GitHub API at build time | — |
+| giscus `repoId`, `categoryId` | public REST API at build time, no token | — |
 | Comment category | `Announcements`, else the first non-answerable category | `comments` |
 | giscus `mapping` | the page: `number` for a discussion, `pathname` for a file | — |
+
+Discussion **content** is not derived at build time at all — it is fetched in the
+reader's browser, so publishing one requires no build. Only the giscus ids are
+resolved during the build, because committed pages need them in their HTML.
 
 The mapping is not settable. It has to match how the page was sourced, or the
 comment thread does not resolve at all.
@@ -52,15 +56,18 @@ discussions: {
 }
 ```
 
+These filters run in the browser, in `src/lib/discussion-content.ts`.
+
 Always excluded, regardless of this setting:
 
 - **Comment threads**, identified by the `<!-- sha1: … -->` marker giscus embeds
-  in threads it creates (and that octopage embeds in any it creates).
+  in threads it opens.
 - **Discussions from untrusted authors.** Only `OWNER`, `MEMBER` and
-  `COLLABORATOR` are published. Anyone can open a discussion in a public
-  repository, and the build compiles bodies as MDX, which evaluates JavaScript —
-  publishing only what someone with write access wrote is what keeps a
-  passer-by from running code in CI.
+  `COLLABORATOR` are rendered. Anyone can open a discussion in a public
+  repository, and bodies are compiled as MDX — which evaluates JavaScript, in the
+  reader's browser. `author_association` comes from GitHub's response, so it
+  cannot be forged from the client; it narrows the risk to someone who already
+  has write access and could push malicious code anyway.
 
 ## `comments` (optional)
 
@@ -92,18 +99,15 @@ route: /somewhere-else
 Recognised keys are the same as file frontmatter: `title` (defaults to the
 discussion title), `description`, `date`, `slug`, `route`, `draft`.
 
-**Bodies may not `import`.** Components come from a fixed scope in
-`src/components/mdx.tsx` and are used by name. Add to that file to widen what
-authors can reach.
+**Bodies may not `import`** — there is no bundler in the browser to resolve one.
+Components come from a fixed scope in `src/components/mdx.tsx` and are used by
+name. Add to that file to widen what authors can reach.
 
 ## Environment
 
 | Variable | Purpose |
 |---|---|
-| `OCTOPAGE_GITHUB_TOKEN` | Explicit token; wins over everything else. |
-| `GITHUB_TOKEN` | What Actions injects. |
 | `GITHUB_REPOSITORY` | `owner/name`; set by Actions, overrides the git remote. |
-| `OCTOPAGE_OFFLINE=1` | Skip every GitHub call. Discussion content falls back to the last build's cache, and comments are omitted rather than rendered broken. Used by CI and by local gates. |
+| `OCTOPAGE_OFFLINE=1` | Skip the two build-time REST calls. Comments are omitted rather than mounted with empty ids; discussion pages still work in the browser, since they never depended on the build. Used by CI. |
 
-With none of these set, an authenticated `gh` CLI is used, so a local dev server
-works with no configuration.
+No token is needed anywhere. Everything the build reads is public.

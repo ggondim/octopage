@@ -60,3 +60,29 @@ test.describe('giscus attributes', () => {
     expect(attrs['data-reactions-enabled']).toBe('0');
   });
 });
+
+test.describe('mapping follows the page, not a setting', () => {
+  const base = {
+    repo: 'o/r',
+    repoId: 'R_x',
+    category: 'Announcements',
+    categoryId: 'DIC_x',
+  } as const;
+
+  test('a discussion-backed page pairs by number', () => {
+    // The page *is* the discussion, so its comments are that discussion's
+    // comments and giscus never opens a second one.
+    const attrs = giscusAttributes({ ...base, mapping: 'number', term: '42' });
+    expect(attrs['data-mapping']).toBe('number');
+    expect(attrs['data-term']).toBe('42');
+  });
+
+  test('a committed page pairs by pathname and carries no term', () => {
+    // There is no discussion yet; giscus derives the term from location.pathname
+    // in the browser and its bot opens the thread on the first comment. A term
+    // here would override that and pair every page to the same thread.
+    const attrs = giscusAttributes({ ...base, mapping: 'pathname' });
+    expect(attrs['data-mapping']).toBe('pathname');
+    expect(attrs['data-term']).toBeUndefined();
+  });
+});

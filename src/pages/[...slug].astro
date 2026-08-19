@@ -1,34 +1,29 @@
 ---
 import { getCollection, render } from 'astro:content';
 import Content from '../layouts/Content.astro';
-import { discussionScope, mdxComponents } from '../components/index.ts';
-import { compileMdx } from '../lib/mdx.ts';
+import { mdxComponents } from '../components/index.ts';
 import { routeFor, routeToSlugParam } from '../lib/routing.ts';
 import { config } from 'octopage:config';
 
 /**
- * One catch-all serves both sources.
+ * Committed content, prerendered.
  *
- * They differ only in how the body becomes a component: a committed `.mdx` goes
- * through Astro's own MDX pipeline, while a discussion body is compiled in
- * memory here, because it exists nowhere but in the API response.
+ * Discussion-backed pages are deliberately absent: they resolve in the browser
+ * through 404.astro, so a discussion published a minute ago is live without a
+ * build. Files go through Astro's own MDX pipeline, which is why they may
+ * `import` components and ship no JavaScript.
  */
 export async function getStaticPaths() {
   const pages = await getCollection('pages', ({ data }) => !data.draft);
-  const discussions = await getCollection('discussions', ({ data }) => !data.draft);
 
-  return [...pages, ...discussions].map((entry) => ({
+  return pages.map((entry) => ({
     params: { slug: routeToSlugParam(routeFor(entry, config)) },
     props: { entry },
   }));
 }
 
 const { entry } = Astro.props;
-
-const Body =
-  entry.collection === 'discussions'
-    ? await compileMdx(entry.data.body)
-    : (await render(entry)).Content;
+const { Content: Body } = await render(entry);
 ---
 
 <Content
@@ -37,8 +32,6 @@ const Body =
   date={entry.data.date?.toISOString()}
   author={entry.data.author}
   labels={entry.data.labels}
-  discussion={entry.collection === 'discussions' ? entry.data.discussion : undefined}
-  discussionUrl={entry.collection === 'discussions' ? entry.data.discussionUrl : undefined}
 >
-  <Body components={entry.collection === 'discussions' ? discussionScope : mdxComponents} />
+  <Body components={mdxComponents} />
 </Content>

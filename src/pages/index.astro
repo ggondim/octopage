@@ -2,28 +2,26 @@
 import { getCollection } from 'astro:content';
 import Shell from '../layouts/Shell.astro';
 import { PostList, SiteHero } from '../components/index.ts';
+import { DiscussionList } from '../components/DiscussionList.tsx';
 import { routeFor } from '../lib/routing.ts';
-import { resolveRepo } from '../lib/repo.ts';
-import { config, site } from 'octopage:config';
+import { config, repo, site } from 'octopage:config';
 
 const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
-const entries = [
-  ...(await getCollection('pages', ({ data }) => !data.draft)),
-  ...(await getCollection('discussions', ({ data }) => !data.draft)),
-];
-
-const posts = entries
+/*
+ * Committed content is listed at build time; discussions are listed in the
+ * browser, below it. Splitting the list this way keeps the static half in the
+ * initial HTML — so the home page is never empty for a crawler or with
+ * JavaScript off — while new discussions still appear with no rebuild.
+ */
+const pages = (await getCollection('pages', ({ data }) => !data.draft))
   .filter((entry) => routeFor(entry, config) !== '/')
   .sort((a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0))
   .map((entry) => ({
     title: entry.data.title,
     description: entry.data.description,
     href: `${base}${routeFor(entry, config)}/`,
-    category: entry.collection === 'discussions' ? entry.data.category : undefined,
   }));
-
-const repo = resolveRepo();
 ---
 
 <Shell title={site.title} description={site.description}>
@@ -35,6 +33,10 @@ const repo = resolveRepo();
   />
 
   <div style="margin-block-start: var(--base-size-48)">
-    <PostList posts={posts} />
+    <PostList posts={pages} />
+  </div>
+
+  <div style="margin-block-start: var(--base-size-32)">
+    <DiscussionList client:load repo={repo} config={config} base={import.meta.env.BASE_URL} />
   </div>
 </Shell>

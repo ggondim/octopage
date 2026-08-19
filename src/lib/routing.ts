@@ -17,7 +17,7 @@ export function slugify(value: string): string {
 
 export interface RoutableEntry {
   id: string;
-  collection: 'pages' | 'discussions';
+  collection: string;
   data: { route?: string; slug?: string; discussion?: number };
 }
 
@@ -52,12 +52,8 @@ export function routeFor(entry: RoutableEntry, config: OctopageConfig): string {
 
   if (entry.data.route) return normalizeRoute(entry.data.route);
 
-  if (entry.collection === 'discussions') {
-    return normalizeRoute(`${config.discussions.basePath}/${entry.id}`);
-  }
-
-  // Committed content. A `pages/` directory maps to the site root, matching
-  // Astro's own `src/pages` convention; every other directory keeps its name.
+  // A `pages/` directory maps to the site root, matching Astro's own
+  // `src/pages` convention; every other directory keeps its name.
   const segments = entry.id.split('/').filter(Boolean);
   if (segments[0] === 'pages') segments.shift();
   if (segments.at(-1) === 'index') segments.pop();

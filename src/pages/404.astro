@@ -1,0 +1,20 @@
+---
+import Shell from '../layouts/Shell.astro';
+import { DiscussionPage } from '../components/DiscussionPage.tsx';
+import { config, giscus, repo, site } from 'octopage:config';
+
+/*
+ * The dynamic half of the site.
+ *
+ * GitHub Pages serves this file for any path with no matching file, which is
+ * what lets a discussion published one minute ago resolve at its URL without a
+ * rebuild. The island reads the repository's Discussions in the browser and
+ * renders whichever one claims this path — or a genuine "not found" if none
+ * does, which is the same page doing its original job.
+ */
+const base = import.meta.env.BASE_URL;
+---
+
+<Shell title="…" description={site.description}>
+  <DiscussionPage client:load repo={repo} config={config} base={base} giscus={giscus} />
+</Shell>

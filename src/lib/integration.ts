@@ -2,8 +2,9 @@ import type { AstroIntegration } from 'astro';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { parseConfig, type OctopageConfig, type OctopageUserConfig } from './config.ts';
-import { giscusBaseConfig } from './giscus-config.ts';
+import { resolveGiscus } from './giscus-config.ts';
 import { redirectRoutes } from './routing.ts';
+import { resolveRepo } from './repo.ts';
 
 const VIRTUAL_ID = 'octopage:config';
 const RESOLVED_VIRTUAL_ID = '\0octopage:config';
@@ -32,9 +33,11 @@ export default function octopage(userConfig: OctopageUserConfig = {}): AstroInte
 
         // Resolved once here rather than per page: it costs a round trip, and
         // every page needs the same answer.
-        let giscus: Awaited<ReturnType<typeof giscusBaseConfig>> = null;
+        const repo = resolveRepo();
+
+        let giscus: Record<string, string> | null = null;
         try {
-          giscus = await giscusBaseConfig(config);
+          giscus = await resolveGiscus(repo, config);
         } catch (error) {
           logger.warn(`Comments disabled: ${(error as Error).message}`);
         }
@@ -66,6 +69,7 @@ export default function octopage(userConfig: OctopageUserConfig = {}): AstroInte
                     ? [
                         `export const config = ${JSON.stringify(config)};`,
                         `export const site = ${JSON.stringify(site)};`,
+                        `export const repo = ${JSON.stringify(repo)};`,
                         `export const giscus = ${JSON.stringify(giscus)};`,
                         `export default config;`,
                       ].join('\n')
