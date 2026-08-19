@@ -34,7 +34,10 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          # Matches the volta pin in package.json. `engines` still allows 22 as
+          # the floor, but CI runs what development runs, so a failure here is
+          # reproducible locally.
+          node-version: 24
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
