@@ -2,6 +2,7 @@ import type { AstroIntegration } from 'astro';
 import { fileURLToPath } from 'node:url';
 import { mappingForSource, parseConfig, type OctopageConfig, type OctopageUserConfig } from './config.ts';
 import { giscusAttributes, type GiscusConfig } from './giscus.ts';
+import { redirectRoutes } from './routing.ts';
 import { syncDiscussionsToMdx, SYNC_DIR } from './sync/discussions-to-mdx.ts';
 import { pairDiscussions } from './sync/pair-discussions.ts';
 
@@ -44,6 +45,13 @@ export default function octopage(
         // serves `/blog/post.html`. giscus reads whichever one the browser is
         // on, so the paired discussion title has to follow the same choice.
         trailingSlash = astroConfig.build.format === 'directory';
+        const redirects = redirectRoutes(config);
+        if (Object.keys(redirects).length) {
+          // Hand these to Astro rather than emitting meta-refresh pages, so
+          // each host applies its own native redirect on a static deploy.
+          updateConfig({ redirects });
+        }
+
         updateConfig({
           vite: {
             resolve: {

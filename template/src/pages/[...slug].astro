@@ -2,7 +2,11 @@
 import { getCollection, render } from 'astro:content';
 import Content from 'octopage/layouts/Content.astro';
 import { mdxComponents } from 'octopage/components';
-import { routeForEntry, routeToSlugParam } from 'octopage';
+import { resolveEntryRoute, routeToSlugParam } from 'octopage';
+// From the virtual module, not the config file: Astro hoists getStaticPaths
+// out of component scope, so it can only reach imports — and this one is
+// already validated and defaulted by the integration.
+import { config } from 'octopage:config';
 
 /**
  * One catch-all route serves every page in either source mode. The entries
@@ -14,7 +18,7 @@ export async function getStaticPaths() {
   const entries = await getCollection('content', ({ data }) => !data.draft);
 
   return entries.map((entry) => ({
-    params: { slug: routeToSlugParam(routeForEntry(entry)) },
+    params: { slug: routeToSlugParam(resolveEntryRoute(entry, config)) },
     props: { entry },
   }));
 }

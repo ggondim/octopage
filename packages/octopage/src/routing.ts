@@ -97,3 +97,51 @@ export function routeToSlugParam(route: string): string | undefined {
   const slug = route.replace(/^\//, '');
   return slug === '' ? undefined : slug;
 }
+
+export interface RoutableEntry {
+  id: string;
+  data: { route?: string; slug?: string; discussion?: number };
+}
+
+/**
+ * The final route for an entry, custom URL tree included.
+ *
+ * Precedence, highest first:
+ *   1. a `routes` entry pinning this discussion number or this entry id
+ *   2. an explicit `route` in frontmatter (which is also how the discussions
+ *      sync propagates a pin it already resolved)
+ *   3. the path on disk
+ *
+ * Pins win outright: an author who points `/about` at discussion 12 means it,
+ * and the page must not also be published at `/content/general/12`.
+ */
+export function resolveEntryRoute(entry: RoutableEntry, config: OctopageConfig, pagesDir = 'pages'): string {
+  for (const { route, target } of resolveCustomRoutes(config)) {
+    if ('discussion' in target && entry.data.discussion === target.discussion) return route;
+    if ('entry' in target && entry.id === target.entry) return route;
+  }
+  return routeForEntry(entry, pagesDir);
+}
+
+/**
+ * `routes` members that are plain redirects, in the shape Astro's `redirects`
+ * config option takes. Emitting them through Astro rather than hand-rolling
+ * meta-refresh pages means each host applies its own native redirect mechanism.
+ */
+export function redirectRoutes(config: OctopageConfig): Record<string, string> {
+  const base = config.site.base === '/' ? '' : `/${config.site.base.replace(/^\/|\/$/g, '')}`;
+  const redirects: Record<string, string> = {};
+
+  for (const { route, target } of resolveCustomRoutes(config)) {
+    if (!('redirect' in target)) continue;
+
+    // Astro applies `base` to the redirect *source* but emits the destination
+    // verbatim, so an internal target has to carry the base itself or the
+    // redirect lands on a 404 the moment the site is deployed to a project
+    // page. Absolute URLs are left alone.
+    const isExternal = /^[a-z][a-z0-9+.-]*:/i.test(target.redirect) || target.redirect.startsWith('//');
+    redirects[route] = isExternal ? target.redirect : `${base}${normalizeRoute(target.redirect)}`;
+  }
+
+  return redirects;
+}

@@ -31,6 +31,10 @@ export default defineConfig({
   // `npx create-octopage` resolve them for you. `false` disables comments.
   comments: false,
 
-  // Custom URL tree, layered over the generated routes.
-  routes: {},
+  // Custom URL tree, layered over the generated routes. A pin wins over the
+  // path on disk, and the path-derived route is then not published at all.
+  routes: {
+    '/custom-place': { entry: 'pages/pinned' },
+    '/writing': { redirect: '/blog/hello-octopage' },
+  },
 });

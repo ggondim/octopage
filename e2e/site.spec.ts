@@ -55,3 +55,24 @@ test.describe('routing', () => {
     for (const href of hrefs) expect(href).toMatch(/^\/octopage\//);
   });
 });
+
+test.describe('custom URL tree', () => {
+  test('a pinned entry is served at its pin, and not at its path', async ({ page }) => {
+    const pinned = await page.goto('custom-place/');
+    expect(pinned?.status()).toBe(200);
+    await expect(page.getByRole('heading', { level: 1, name: 'Pinned page' })).toBeVisible();
+
+    // The pin wins outright — publishing the same page at both URLs would split
+    // its comment thread, since giscus pairs on the pathname.
+    const byPath = await page.goto('pinned/');
+    expect(byPath?.status()).toBe(404);
+  });
+
+  test('a redirect target keeps the base path', async ({ page }) => {
+    await page.goto('writing/');
+    // Astro applies `base` to the redirect source but emits the destination
+    // verbatim, so this is the assertion that catches a target losing its base
+    // and 404ing only once deployed to a project page.
+    await expect(page).toHaveURL(/\/octopage\/blog\/hello-octopage/);
+  });
+});
