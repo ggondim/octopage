@@ -10,7 +10,7 @@ const PORT = 4321;
 // Matches `base` in astro.config.mjs. The suite serves the built site the way
 // the configured host would, so a base-path mistake fails a test rather than a
 // deploy.
-export const BASE = '';
+export const BASE = '/octopage';
 
 export default defineConfig({
   testDir: './e2e',

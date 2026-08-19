@@ -38,7 +38,7 @@ services:
       SERVE_ROOT: /repo/dist
       VERCEL_JSON: /repo/vercel.json
       # Empty for a root deploy; set to '/your-repo' for a Pages project page.
-      BASE_PATH: ${OCTOPAGE_BASE:-}
+      BASE_PATH: ${OCTOPAGE_BASE:-/octopage}
       PORT: '4000'
 
   # ── GitHub Pages, without .nojekyll ──────────────────────────────────────
