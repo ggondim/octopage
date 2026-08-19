@@ -1,0 +1,45 @@
+---
+import { giscus } from 'octopage:config';
+import { giscusAttributes } from '../lib/giscus.ts';
+
+export interface Props {
+  /** Set for discussion-backed pages: the page *is* this discussion. */
+  discussion?: number;
+  title?: string;
+}
+
+const { discussion, title = 'Comments' } = Astro.props;
+
+/*
+ * The mapping is decided per page, by where the page came from.
+ *
+ * A discussion-backed page already is a discussion, so it pairs by number and
+ * its comments are that discussion's comments — nothing new is ever created.
+ * A committed page has no discussion, so giscus pairs on the URL pathname and
+ * the giscus bot opens the thread when a reader first comments.
+ */
+const attrs = giscus
+  ? giscusAttributes({
+      repo: giscus.repo,
+      repoId: giscus.repoId,
+      category: giscus.category,
+      categoryId: giscus.categoryId,
+      strict: giscus.strict,
+      ...(discussion !== undefined
+        ? { mapping: 'number' as const, term: String(discussion) }
+        : { mapping: 'pathname' as const }),
+    })
+  : null;
+---
+
+{
+  attrs && (
+    <section class="octopage-comments" aria-label={title}>
+      <script is:inline src="https://giscus.app/client.js" crossorigin="anonymous" async {...attrs} />
+      <noscript>
+        Comments are powered by GitHub Discussions and need JavaScript. You can read and post them
+        on GitHub instead.
+      </noscript>
+    </section>
+  )
+}

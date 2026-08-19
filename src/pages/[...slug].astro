@@ -1,0 +1,44 @@
+---
+import { getCollection, render } from 'astro:content';
+import Content from '../layouts/Content.astro';
+import { discussionScope, mdxComponents } from '../components/index.ts';
+import { compileMdx } from '../lib/mdx.ts';
+import { routeFor, routeToSlugParam } from '../lib/routing.ts';
+import { config } from 'octopage:config';
+
+/**
+ * One catch-all serves both sources.
+ *
+ * They differ only in how the body becomes a component: a committed `.mdx` goes
+ * through Astro's own MDX pipeline, while a discussion body is compiled in
+ * memory here, because it exists nowhere but in the API response.
+ */
+export async function getStaticPaths() {
+  const pages = await getCollection('pages', ({ data }) => !data.draft);
+  const discussions = await getCollection('discussions', ({ data }) => !data.draft);
+
+  return [...pages, ...discussions].map((entry) => ({
+    params: { slug: routeToSlugParam(routeFor(entry, config)) },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+
+const Body =
+  entry.collection === 'discussions'
+    ? await compileMdx(entry.data.body)
+    : (await render(entry)).Content;
+---
+
+<Content
+  title={entry.data.title}
+  description={entry.data.description}
+  date={entry.data.date?.toISOString()}
+  author={entry.data.author}
+  labels={entry.data.labels}
+  discussion={entry.collection === 'discussions' ? entry.data.discussion : undefined}
+  discussionUrl={entry.collection === 'discussions' ? entry.data.discussionUrl : undefined}
+>
+  <Body components={entry.collection === 'discussions' ? discussionScope : mdxComponents} />
+</Content>

@@ -20,3 +20,10 @@ test-results/
 playwright-report/
 blob-report/
 .playwright/
+
+# pnpm creates a local store when the global one is on another filesystem —
+# notably inside containers that mount this repo. 344 MB of it landed in a
+# commit once already.
+.pnpm-store/
+
+test-results/

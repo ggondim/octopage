@@ -1,6 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { giscusAttributes, giscusPathnameTerm } from '../packages/octopage/src/giscus.ts';
-import { mappingForSource } from '../packages/octopage/src/config.ts';
+import { giscusAttributes, giscusPathnameTerm } from '../src/lib/giscus.ts';
 
 /**
  * These lock the one behaviour that fails silently in production: giscus
@@ -22,11 +21,15 @@ test.describe('giscus term derivation', () => {
   });
 });
 
-test('the widget is absent while comments are disabled', async ({ page }) => {
+test('an offline build degrades to no widget rather than a broken one', async ({ page }) => {
   await page.goto('blog/hello-octopage/');
-  // The template ships with `comments: false`; rendering an empty section with
-  // a heading over it would be worse than rendering nothing.
+
+  // giscus needs a repo id and a category id, and only the API can produce
+  // them. Under OCTOPAGE_OFFLINE the build cannot resolve either, so the
+  // section is omitted entirely — emitting the script with empty ids would
+  // render giscus's own error box to every reader instead.
   await expect(page.locator('.octopage-comments')).toHaveCount(0);
+  await expect(page.locator('script[src="https://giscus.app/client.js"]')).toHaveCount(0);
 });
 
 test.describe('giscus attributes', () => {
@@ -36,14 +39,6 @@ test.describe('giscus attributes', () => {
     category: 'General',
     categoryId: 'DIC_kwDOT9xces4DDvvd',
   };
-
-  test('the mapping follows the source mode, and is not independently settable', () => {
-    // The two have to agree for a comment thread to resolve at all: in
-    // discussions mode the page *is* a discussion (pair by number); in code
-    // mode the discussion is created for the page (pair by pathname).
-    expect(mappingForSource('discussions')).toBe('number');
-    expect(mappingForSource('code')).toBe('pathname');
-  });
 
   test('a discussion number travels in data-term under the number mapping', () => {
     const attrs = giscusAttributes({ ...base, mapping: 'number', term: '42' });

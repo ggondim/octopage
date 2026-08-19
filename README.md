@@ -1,180 +1,198 @@
 # octopage
 
-A template repository for a **100% static** personal site or blog whose content
-and comments both live in a public GitHub repository — no CMS, no database, no
+A template repository for a **fully static** personal site or blog whose content
+and comments both live in a public GitHub repository. No CMS, no database, no
 server.
 
-- **Content** comes from the GitHub API: either Discussions, or `.mdx` committed
-  to the repo.
-- **Comments** are GitHub Discussions threads, rendered by [giscus](https://giscus.app).
+- **Content** comes from two places at once: `.mdx` committed under
+  `src/content`, and the repository's **GitHub Discussions**, read live from the
+  API at build time.
+- **Comments** are Discussions threads rendered by [giscus](https://giscus.app).
 - **UI** is [GitHub Primer Brand](https://primer.style/brand).
-- **Deploy** targets GitHub Pages, with Vercel supported through the same build.
+- **Deploy** targets GitHub Pages; Vercel works too, with its own `base`.
 
 ## Quick start
 
 ```bash
-npx create-octopage        # interactive setup
 pnpm install
+pnpm setup     # interactive; removes itself when done
 pnpm dev
 ```
 
-## Choosing a source
+## Two sources, always both
 
-Setup asks one question that shapes everything else: where you write.
+You do not pick a mode. A page is whichever kind it is, and both render through
+the same layout.
 
-### 1. GitHub Discussions only — recommended
-
-Publish by opening a discussion. Nothing is committed, and you can write from
-any device with a browser.
-
-- Metadata goes in an HTML comment at the top of the body, which is invisible in
-  both the GitHub editor and the rendered discussion:
-
-  ```markdown
-  <!-- octopage
-  description: What this post is about
-  slug: my-post
-  -->
-
-  The body, in MDX.
-  ```
-
-- Labels and category come from the discussion itself.
-- MDX component tags work in the body. They will not render in GitHub's editor —
-  only on the published site.
-- URLs default to `/content/[category]/[id]`, and any route can be pinned to a
-  specific discussion (see [Custom URL trees](#custom-url-trees)).
-- giscus pairs by **discussion number**, so a page's comments are the thread on
-  the page's own discussion.
-
-### 2. Code for content, Discussions for comments
-
-Write `.mdx` under `blog/` or `pages/` and preview locally before publishing.
-
-- Metadata, labels and category go in normal `---` frontmatter.
-- URLs follow the folder structure; `pages/` maps to the site root, so
-  `pages/about.mdx` is served at `/about` and `blog/post.mdx` at `/blog/post`.
-- The build **creates the paired discussion** for each page, applying the
-  configured labels.
-- giscus pairs by **URL pathname**.
-
-Both modes render through the same pipeline. Switching between them changes
-where your text is stored, not how a page behaves.
-
-## How it works
-
-Discussions are synced down to MDX files on disk *before* Astro runs, and both
-modes then use Astro's stock `glob()` loader plus `@astrojs/mdx`.
-
-This is deliberate. Astro's Content Layer API can fetch remote content into a
-custom loader, but its `renderMarkdown()` helper renders Markdown only — there
-is no MDX equivalent — so a loader-based path would silently drop the component
-tags authors embed in discussion bodies. Going through disk means islands, image
-optimization and component imports behave identically no matter where a page
-came from.
+### Committed — `src/content/**/*.mdx`
 
 ```
-GitHub Discussions ──sync──► .octopage/content/**/*.mdx ──┐
-                                                          ├──► glob() ──► @astrojs/mdx ──► dist/
-blog/**/*.mdx, pages/**/*.mdx ────────────────────────────┘
+src/content/blog/hello.mdx   →  /blog/hello
+src/content/pages/about.mdx  →  /about        (a `pages` directory maps to the root)
 ```
 
-`.octopage/` is generated and gitignored.
+Ordinary `---` frontmatter. Previewable locally before publishing. Because these
+files are reviewed like any other code, they may `import` components.
 
-### Why the Primer components cost no JavaScript
+giscus pairs them on the **URL pathname**, and the giscus bot opens the thread
+when a reader first comments.
 
-Primer Brand's `ThemeProvider` renders a `<div data-color-mode>` plus a React
-context that, as of v0.73, **no component in the library actually reads** — the
-theming is entirely CSS custom properties keyed off that attribute. octopage
-sets the attribute in the Astro layout instead of wrapping the tree in a React
-island, so components render to static HTML and never hydrate.
+### Discussions — read live from the API
 
-Of the 55 components in the library, 37 hold no state and register no listeners.
-A prose page ships **zero bytes** of client JavaScript; only genuinely
-interactive components (Accordion, Tabs, SubNav…) become islands, and only on
-the pages that use them.
+Open a discussion and it becomes a page. Nothing is committed, and nothing is
+written to disk between builds: edit the discussion on GitHub, rebuild, and the
+page changes.
+
+Metadata goes in an HTML comment, invisible both in GitHub's editor and in the
+rendered discussion:
+
+```markdown
+<!-- octopage
+description: What this post is about
+slug: my-post
+-->
+
+The body, in MDX.
+```
+
+Labels and category come from the discussion itself. Routes default to
+`/content/[category]/[slug]`.
+
+giscus pairs these on the **discussion number** — the page *is* the discussion,
+so its comments are that discussion's comments and nothing new is ever created.
+
+#### Two limits worth knowing
+
+Anyone with a GitHub account can open a discussion in a public repository, and
+this build compiles discussion bodies as MDX — which evaluates JavaScript. So:
+
+1. **Only discussions by `OWNER`, `MEMBER` or `COLLABORATOR` are published.**
+   Those are the people who already have write access; a passer-by cannot run
+   code in your CI by opening a discussion.
+2. **Discussion bodies may not `import`.** Components are provided by name from
+   a fixed scope (`src/components/mdx.tsx`), so bodies stay readable and cannot
+   pull in arbitrary modules. Write `<Label>` directly, no import line.
+
+Comment threads are told apart from content by the `<!-- sha1: … -->` marker
+giscus embeds, so the two can share a category without colliding.
 
 ## Configuration
 
-Everything lives in `octopage.config.ts`. See
-[`docs/configuration.md`](docs/configuration.md) for the full reference.
+Almost nothing. `octopage.config.ts` with `{}` is a complete configuration.
 
-### Custom URL trees
+| Fact | Where it comes from |
+|---|---|
+| Repository | the `origin` git remote, or `GITHUB_REPOSITORY` in Actions |
+| Site URL and base path | `astro.config.mjs` (`site`, `base`) |
+| Site name and tagline | `package.json` (`name`, `description`) |
+| giscus repo id and category id | the GitHub API, at build time |
+| Comment category | `Announcements` if it exists, else the first usable one |
 
-Both modes accept a hand-built information architecture layered over the
-generated routes:
+What remains is what cannot be inferred — see
+[`docs/configuration.md`](docs/configuration.md):
 
 ```ts
-routes: {
-  '/about':  { discussion: 12 },
-  '/uses':   { discussion: 34 },
-  '/writing': { redirect: '/blog' },
-}
+export default defineConfig({
+  routes: {
+    '/about': { discussion: 12 },     // pin a URL to a discussion
+    '/uses':  { entry: 'pages/uses' },// pin a URL to a committed file
+    '/old':   { redirect: '/new' },
+  },
+});
 ```
 
-A discussion pinned to a custom route is not also published at its default
-`/content/...` URL.
+## Why the Primer components cost no JavaScript
 
-## Local preview
+Primer Brand's `ThemeProvider` renders a `<div data-color-mode>` plus a React
+context that, as of v0.73, **no component in the library reads** — theming is
+entirely CSS custom properties keyed off that attribute. The layout sets the
+attribute in Astro instead of wrapping the tree in a React island, so components
+render to static HTML and never hydrate.
+
+37 of the library's 55 components hold no state and register no listeners. A
+prose page ships **zero bytes** of first-party JavaScript.
+
+One caveat: Primer's *compound* components (`Hero`, `Card`, `Accordion`)
+coordinate through React context between a parent and its subcomponents.
+Composing them directly in an `.astro` file gives each subcomponent its own
+React root and the render fails. Compose them inside a `.tsx` and expose one
+component to Astro — see `src/components/SiteHero.tsx`.
+
+## Previewing the build the way each host serves it
 
 `pnpm dev` is the Astro dev server, with HMR — that is what you want while
-writing.
-
-The Docker composes are for a different job: previewing the **built** site the
-way each host will actually serve it, where base paths, trailing slashes,
-directory indexes and 404 routing differ.
+writing. The Docker profiles are for a different job: previewing the **built**
+site under each host's semantics, where base paths, trailing slashes, directory
+indexes and 404 routing differ.
 
 ```bash
-pnpm site:build
-docker compose -f docker/docker-compose.yml --profile pages up    # GitHub Pages
-docker compose -f docker/docker-compose.yml --profile vercel up   # Vercel
+pnpm preview:pages     # GitHub Pages
+pnpm preview:vercel    # Vercel
+pnpm preview:down
 ```
 
-The `pages` profile runs Jekyll with processing **on**, which is the point:
-GitHub Pages passes branch-based deploys through Jekyll, and Jekyll drops every
-top-level path starting with an underscore — including Astro's `_astro/`. A site
-deployed that way loses all of its CSS and JS unless `.nojekyll` is present.
-`template/public/.nojekyll` is what prevents it; delete it and this preview shows
-you the broken site rather than production doing so.
+### The same build cannot serve both hosts
 
-(The included workflow uploads a Pages artifact instead, a path that never
-invokes Jekyll. The profile covers the other one.)
+GitHub Pages project sites live under `/<repo>`; Vercel serves from the web
+root. `base` is compiled into every asset URL, so a build made for one 404s
+every stylesheet and script on the other — while still returning 200 for the
+pages themselves, which makes it look like it works.
 
-The Jekyll image is published for amd64 only, so on Apple Silicon this profile
-runs under emulation — slow to pull and boot, but faithful.
+| Built with `base: '/octopage'` | pages | assets |
+|---|---|---|
+| `preview:pages` | 200 | 200 |
+| `preview:vercel` | 200 | **404** |
 
-> **Unverified.** Both compose profiles are written and reviewed but have not
-> been run end to end yet. Treat them as a starting point rather than a
-> known-good setup.
+Deploying to Vercel means building with `base: '/'`.
+
+### What the `pages` profile is really testing
+
+It reproduces the decision GitHub Pages makes before serving: if `.nojekyll` is
+present at the root of the published tree, Jekyll is skipped and files are
+served as-is; otherwise the tree goes through Jekyll first — which drops every
+top-level path starting with an underscore, including Astro's `_astro/`.
+
+`.nojekyll` is a **GitHub Pages** convention, not a Jekyll feature: Jekyll itself
+ignores the file. Delete `public/.nojekyll`, rebuild, and this profile shows you
+the broken site instead of production doing so.
+
+The Jekyll image is amd64-only, so on Apple Silicon it runs under emulation.
 
 ## Testing
 
 ```bash
-pnpm test:e2e
+pnpm test
 ```
 
-Playwright runs against the real build output rather than a dev server, so
-base-path bugs — the most common way a working local site breaks once deployed
-to a project page — are actually reachable.
+Playwright runs against the real build output, served under the configured base
+path, so base-path bugs — the most common way a working local site breaks once
+deployed to a project page — are reachable from a test.
 
-## Repository layout
+The suite runs with `OCTOPAGE_OFFLINE=1`: it asserts on rendering and routing,
+not on content freshness, and a fork's pull request has no token to reach the
+API with anyway.
+
+## Layout
 
 ```
-packages/octopage/          runtime: Astro integration, GitHub client, sync, layouts
-packages/create-octopage/   the interactive setup CLI (Ink)
-template/                   the site you get
-docker/                     host-emulating preview profiles
-e2e/                        Playwright suite
+src/content/        committed .mdx (blog/, pages/)
+src/components/     Primer Brand composition (.tsx)
+src/layouts/        page shells (.astro)
+src/lib/            runtime: GitHub client, loader, routing, giscus, MDX
+src/pages/          routes
+setup/              the interactive setup — deletes itself after running
+scripts/serve.mjs   static server used by the Docker vercel profile and by tests
+docker/             preview profiles
+e2e/                Playwright
 ```
 
 ## Requirements
 
-- Node 22+
-- pnpm 9+
+- Node 22+, pnpm 9+
 - A GitHub token for builds. The Discussions API is GraphQL-only and rejects
-  anonymous requests **even for public repositories**, so builds need one. In
-  Actions, `secrets.GITHUB_TOKEN` is enough; locally, an authenticated `gh` CLI
-  is picked up automatically.
+  anonymous requests **even for public repositories**. In Actions,
+  `secrets.GITHUB_TOKEN` is enough; locally an authenticated `gh` CLI is picked
+  up automatically. Without one, build with `OCTOPAGE_OFFLINE=1`.
 
 ## License
 

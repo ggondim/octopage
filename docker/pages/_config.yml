@@ -1,17 +1,15 @@
-# Jekyll runs here with processing ON, on purpose.
+# Used only on the branch where `.nojekyll` is absent, i.e. when GitHub Pages
+# would run the tree through Jekyll. See docker-compose.yml for why that branch
+# exists and what it demonstrates.
 #
-# GitHub Pages passes branch-based deploys through Jekyll, and Jekyll excludes
-# every top-level path beginning with an underscore. Astro emits its assets into
-# `_astro/`, so an Astro site deployed from a branch loses all of its CSS and JS
-# unless a `.nojekyll` file is present — which is exactly the failure this
-# profile exists to surface locally instead of in production.
-#
-# `template/public/.nojekyll` is what prevents it, and it is copied into dist/
-# by the build. Delete it and this preview will show you the broken site.
-#
-# (The workflow in .github/workflows/deploy.yml uploads a Pages artifact
-# instead, a path that never invokes Jekyll. This profile covers the other one.)
+# Processing stays ON deliberately: the point is to reproduce Jekyll dropping
+# `_astro/`, not to avoid it.
 source: /srv/site
-destination: /srv/_site
+destination: /tmp/_site
 incremental: false
 plugins: []
+
+# The source is mounted read-only, and `cache_dir` is resolved relative to the
+# source, so no path can escape it — disabling the disk cache is the only way
+# out. Irrelevant anyway: the site is already built, Jekyll only re-emits it.
+disable_disk_cache: true

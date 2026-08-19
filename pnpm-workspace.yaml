@@ -1,4 +1,0 @@
-packages:
-  - 'packages/*'
-  - 'template'
-  - 'examples/*'

@@ -15,8 +15,9 @@ permissions:
   contents: read
   pages: write
   id-token: write
-  # `code` mode creates the discussion each page pairs with at build time.
-  discussions: write
+  # Read-only: giscus opens comment threads itself, on a reader's first
+  # comment, so the build never needs to create a discussion.
+  discussions: read
 
 # Let a running deploy finish rather than cancelling it: a half-applied Pages
 # deployment is worse than a slightly stale one.
@@ -43,10 +44,9 @@ jobs:
       - run: pnpm install --frozen-lockfile
 
       - name: Build
-        working-directory: template
         env:
           # Discussions are GraphQL-only and reject anonymous requests even for
-          # public repos, so the build cannot run without this.
+          # public repos, so the build cannot read content without this.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: pnpm build
 
@@ -54,7 +54,7 @@ jobs:
 
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: template/dist
+          path: dist
 
   deploy:
     needs: build

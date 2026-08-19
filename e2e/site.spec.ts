@@ -4,13 +4,14 @@ test.describe('rendering', () => {
   test('home lists content and applies the Primer theme attribute', async ({ page }) => {
     await page.goto('.');
 
-    await expect(page).toHaveTitle(/Octopage/);
+    // The title comes from package.json's `name`, not from a config field.
+    await expect(page).toHaveTitle(/octopage/i);
     // Primer Brand themes off this attribute alone — no React context involved.
     await expect(page.locator('body')).toHaveAttribute('data-color-mode', 'auto');
     await expect(page.getByRole('link', { name: 'Hello, octopage' })).toBeVisible();
   });
 
-  test('a prose page ships no JavaScript', async ({ page }) => {
+  test('a prose page ships no first-party JavaScript', async ({ page }) => {
     const scripts: string[] = [];
     page.on('request', (request) => {
       if (request.resourceType() === 'script') scripts.push(request.url());
@@ -19,9 +20,15 @@ test.describe('rendering', () => {
     await page.goto('blog/hello-octopage/');
     await page.waitForLoadState('networkidle');
 
-    // The whole point of rendering Primer's presentational components through
-    // Astro instead of hydrating them: a text page costs zero client JS.
-    expect(scripts).toEqual([]);
+    // The claim being locked here is about the page itself: rendering Primer's
+    // presentational components through Astro rather than hydrating them means
+    // no bundle is emitted for a text page at all.
+    //
+    // giscus is deliberately excluded. It is a third-party script that loads
+    // only where comments are enabled, and it is the reader's opt-in cost for
+    // having comments — not something the rendering approach can avoid.
+    const firstParty = scripts.filter((url) => !url.startsWith('https://giscus.app/'));
+    expect(firstParty).toEqual([]);
   });
 
   test('Primer Brand styles are actually applied, not just class names', async ({ page }) => {
@@ -49,10 +56,15 @@ test.describe('routing', () => {
       els.map((el) => el.getAttribute('href') ?? ''),
     );
 
-    expect(hrefs.length).toBeGreaterThan(0);
+    // giscus injects `https://giscus.app/default.css` into the *parent*
+    // document, not only into its iframe, so the set has to be narrowed to
+    // first-party stylesheets before asserting anything about the base path.
+    const firstParty = hrefs.filter((href) => href.startsWith('/'));
+
+    expect(firstParty.length).toBeGreaterThan(0);
     // A base-path regression makes these absolute-from-root and the deployed
     // project site loses all styling while localhost looks perfect.
-    for (const href of hrefs) expect(href).toMatch(/^\/octopage\//);
+    for (const href of firstParty) expect(href).toMatch(/^\/octopage\//);
   });
 });
 

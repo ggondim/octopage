@@ -1,59 +1,56 @@
 ---
 name: launch
 description: >-
-  Publica a branch atual do octopage em produção (GitHub Pages). Roda os quality
-  gates, commita o que falta, mergeia na main, faz push (dispara o CD) e acompanha
-  o deploy do GitHub Actions até ficar verde. Use quando o usuário disser "launch",
-  "sobe isso", "deploya", "manda pra prod" ou quiser finalizar/publicar a branch
-  atual. Opcional: o usuário pode passar uma mensagem de commit como argumento.
+  Publishes the current branch to production (GitHub Pages). Runs the quality
+  gates, commits what is outstanding, merges into main, pushes (which triggers
+  the deploy) and follows the GitHub Actions run until it is green. Use when the
+  user says "launch", "ship it", "deploy", "push to prod", or otherwise wants to
+  publish the current branch. Optionally takes a commit message as an argument.
 ---
 
-# /launch — publicar o octopage em produção
+# /launch — publish to production
 
-Fluxo de finalização: branch de feature → `main` → GitHub Pages. **Push na `main`
-dispara o CD** (`.github/workflows/deploy.yml` → build do Astro → `actions/deploy-pages`).
-O usuário invocou `/launch`, então a intenção de deployar é explícita — mas **reporte
-cada passo** e **pare se algum gate falhar**.
+Finishing flow: feature branch → `main` → GitHub Pages. **Pushing to `main`
+triggers the deploy** (`.github/workflows/deploy.yml` → Astro build →
+`actions/deploy-pages`). The user invoked `/launch`, so the intent to deploy is
+explicit — but **report every step** and **stop if any gate fails**.
 
-## 0. Descobrir o contexto
+## 0. Establish context
 
 ```bash
-git branch --show-current    # branch atual (NÃO pode ser main)
-git status --short           # o que está pendente
+git branch --show-current    # must not be main
+git status --short
 gh repo view --json nameWithOwner,homepageUrl --jq '.'
 ```
 
-Se já estiver na `main` ou não houver branch de feature, **pare** e diga que não há
-nada para publicar.
+If already on `main`, or there is no feature branch, **stop** and say there is
+nothing to publish.
 
 ## 1. Quality gates
 
 ```bash
-pnpm -r typecheck
-OCTOPAGE_OFFLINE=1 pnpm --filter octopage-template build
-pnpm exec playwright test --project=chromium
+pnpm typecheck
+OCTOPAGE_OFFLINE=1 pnpm build
+pnpm test
 ```
 
-Se qualquer um **falhar**, **pare** e reporte a saída bruta — não commite.
+If any of these **fail**, **stop** and report the raw output — do not commit.
 
-`OCTOPAGE_OFFLINE=1` no gate local é proposital: o build normal vai à API do GitHub
-(sync de discussions no modo 1, criação de discussion no modo 2) e um gate não deve
-depender de rede nem escrever no repo público. O CD roda **sem** essa flag.
+`OCTOPAGE_OFFLINE=1` on the local gate is deliberate. A normal build reads the
+GitHub API for discussion content and for the giscus repo/category ids, and a
+gate should not depend on the network. The deploy runs **without** the flag.
 
-## 2. Commit do que falta
+## 2. Commit what is outstanding
 
-Se `git status --short` mostrar mudanças não commitadas:
+If `git status --short` shows uncommitted work:
 
-- Stage só os arquivos da feature (nunca `node_modules/`, `dist/`, `.octopage/`,
-  `test-results/`, `playwright-report/`, `.env`).
-- Mensagem curta em **pt-BR**, conventional commit (`feat(...)`, `fix(...)`).
-- Se o usuário passou argumento ao `/launch`, use-o como base da mensagem.
+- Stage only the feature's files. Never `node_modules/`, `dist/`,
+  `.pnpm-store/`, `test-results/`, `playwright-report/`, `.env`.
+- Short conventional-commit message (`feat(...)`, `fix(...)`).
+- If the user passed an argument to `/launch`, use it as the basis.
 - Trailer: `Co-Authored-By: Claude Opus 5 (1M context) <noreply@anthropic.com>`
 
-O repo tem o commit-lint do autoducks rodando em PR — mensagem fora do conventional
-commit reprova o check.
-
-## 3. Merge na main + push (dispara o CD)
+## 3. Merge into main and push
 
 ```bash
 git fetch origin --quiet
@@ -63,43 +60,45 @@ git merge --ff-only "$FEAT"
 git push origin main
 ```
 
-- **`--ff-only`** sempre: se não for fast-forward, **pare** e reporte (a main divergiu,
-  a decisão é do usuário).
-- Se o fluxo do repo for por PR (autoducks está instalado e há rulesets), prefira
-  `gh pr create` + `gh pr merge --merge` em vez do merge local, e **espere os checks**.
+Always **`--ff-only`**: if the merge is not a fast-forward, **stop** and report
+that main has diverged — that call is the user's.
 
-## 4. Limpar a branch
+If the repository uses pull requests, prefer `gh pr create` + `gh pr merge` and
+**wait for the checks** rather than merging locally.
+
+## 4. Clean up
 
 ```bash
 git branch -d "$FEAT"
 git push origin --delete "$FEAT" 2>/dev/null || true
-rm -rf test-results playwright-report 2>/dev/null
+rm -rf test-results playwright-report
 ```
 
-## 5. Acompanhar o deploy
+## 5. Follow the deploy
 
 ```bash
 gh run list --branch main --limit 1
 gh run watch <run-id> --exit-status
 ```
 
-- **Passou**: reporte ✅ + commit + a URL publicada (`gh repo view --json homepageUrl`).
-  Opcionalmente `curl -sI <url>` para confirmar 200.
-- **Falhou**: reporte o step quebrado (`gh run view <id> --log-failed`) e **não**
-  re-deploye sozinho — o código já está na main; avise o usuário.
+- **Green**: report the commit and the published URL
+  (`gh repo view --json homepageUrl`). Optionally `curl -sI <url>` to confirm 200.
+- **Red**: report the failing step (`gh run view <id> --log-failed`) and **do
+  not** redeploy on your own — the code is already on main. Tell the user.
 
-Falhas de deploy que aparecem aqui e não nos gates locais são quase sempre uma destas:
+Deploy failures that local gates cannot catch are almost always one of these:
 
-- **Token**: o build real chama a API do GitHub. O job precisa de `GITHUB_TOKEN` e,
-  no modo `code`, de `discussions: write` para criar as discussions pareadas.
-- **Base path**: `site.base` errado publica o site com todos os assets 404. Os testes
-  de `e2e/site.spec.ts` cobrem isso — se passaram, o base está certo para o repo atual.
-- **Discussions desabilitado** no repo de comentários: o build para com erro explícito.
+- **Token.** The real build reads the GitHub API. The job needs `GITHUB_TOKEN`,
+  and `discussions: read` at minimum.
+- **Base path.** A wrong `base` in astro.config.mjs publishes a site whose every
+  asset 404s while the pages themselves return 200. `e2e/site.spec.ts` covers
+  this — if it passed, the base is right for this repository.
+- **Discussions disabled**, or no usable category for comments. The build stops
+  with an explicit message naming what to create.
 
 ## Guardrails
 
-- Nunca force push; nunca commite secrets.
-- Só publica a branch da sessão atual.
-- Nunca commite `.octopage/` — é conteúdo gerado pelo sync, e no modo `discussions`
-  as Discussions do repo são a fonte da verdade.
-- Qualquer passo que falhe → pare e reporte; não mascare erro para "seguir o fluxo".
+- Never force push. Never commit secrets.
+- Only publish the current session's branch.
+- Any failing step → stop and report. Do not paper over an error to keep the
+  flow going.

@@ -1,0 +1,39 @@
+---
+title: Hello, octopage
+description: What this template does, and the two places content can come from.
+date: 2026-08-19
+labels: [announcement]
+---
+
+import { Box, Label, Stack } from '@primer/react-brand';
+
+Octopage builds a fully static site whose content and comments both live in a
+public GitHub repository. There is no CMS, no database and no server.
+
+## Two places content can come from
+
+<Stack direction="vertical" gap="condensed" padding="none">
+  <Box padding="condensed" borderRadius="medium" backgroundColor="subtle">
+    <Label size="small">committed</Label> — `.mdx` under `src/content`, which you
+    can preview locally before publishing. giscus pairs on the URL pathname.
+  </Box>
+  <Box padding="condensed" borderRadius="medium" backgroundColor="subtle">
+    <Label size="small">discussions</Label> — write in the GitHub Discussions
+    editor. Nothing is committed; the build reads the API. giscus pairs on the
+    discussion number, so a page's comments are that discussion's comments.
+  </Box>
+</Stack>
+
+Both are active at once. You do not choose a mode — a page is simply whichever
+kind it is, and the two render through the same layout.
+
+This file is the committed kind, so it can use `import`. Discussion bodies
+cannot: they are untrusted input, and components reach them through a fixed
+scope instead.
+
+## Why the Primer components cost no JavaScript
+
+Primer Brand themes through a `data-color-mode` attribute rather than React
+context — as of v0.73 no component in the library reads that context. The layout
+sets the attribute on `<body>`, so components render to static HTML and a prose
+page ships no client JavaScript at all.

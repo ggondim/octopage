@@ -1,0 +1,42 @@
+---
+import { Heading, Text } from '@primer/react-brand';
+import Comments from '../components/Comments.astro';
+import { PostMeta } from '../components/index.ts';
+import Shell from './Shell.astro';
+
+export interface Props {
+  title: string;
+  description?: string;
+  date?: string;
+  author?: string | null;
+  labels?: string[];
+  discussion?: number;
+  discussionUrl?: string;
+}
+
+const { title, description, date, author, labels = [], discussion, discussionUrl } = Astro.props;
+---
+
+<Shell title={title} description={description}>
+  <article class="octopage-article">
+    <Heading as="h1" size="2">{title}</Heading>
+
+    <div class="octopage-meta">
+      <PostMeta date={date} author={author} labels={labels} />
+    </div>
+
+    <slot />
+
+    {
+      discussionUrl && (
+        <p>
+          <Text as="span" size="200" variant="muted">
+            <a href={discussionUrl}>Discuss this page on GitHub →</a>
+          </Text>
+        </p>
+      )
+    }
+  </article>
+
+  <Comments discussion={discussion} />
+</Shell>

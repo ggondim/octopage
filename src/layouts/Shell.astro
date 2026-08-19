@@ -1,0 +1,28 @@
+---
+import { site } from 'octopage:config';
+import { SiteFooter, SiteHeader, type NavItem } from '../components/index.ts';
+import Base from './Base.astro';
+import { resolveRepo } from '../lib/repo.ts';
+
+export interface Props {
+  title: string;
+  description?: string;
+  nav?: NavItem[];
+}
+
+const { title, description, nav = [] } = Astro.props;
+
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const repo = resolveRepo();
+const repoUrl = `https://github.com/${repo.owner}/${repo.name}`;
+
+const pageTitle = title === site.title ? title : `${title} · ${site.title}`;
+---
+
+<Base title={pageTitle} description={description ?? site.description}>
+  <SiteHeader title={site.title} href={`${base}/`} nav={nav} />
+  <main class="octopage-main">
+    <slot />
+  </main>
+  <SiteFooter title={site.title} repoUrl={repoUrl} />
+</Base>

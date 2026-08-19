@@ -34,9 +34,16 @@ export default defineConfig({
   ],
 
   webServer: {
-    // OCTOPAGE_OFFLINE keeps the suite from hitting the GitHub API on every
-    // run: tests assert on rendering and routing, not on content freshness.
-    command: 'OCTOPAGE_OFFLINE=1 pnpm --filter octopage-template build && pnpm --filter octopage-template preview --port ' + PORT,
+    // OCTOPAGE_OFFLINE keeps the suite off the GitHub API: it asserts on
+    // rendering and routing, not on content freshness, and a fork's pull
+    // request has no token to reach the API with anyway. Discussion-backed
+    // pages are absent under the flag, so every assertion here is about
+    // committed content.
+    // `astro preview` daemonises as of Astro 7 — the foreground process exits
+    // and Playwright treats that as the server dying. scripts/serve.mjs is the
+    // same server the Docker vercel profile uses, here with BASE_PATH set so
+    // the suite exercises the real GitHub Pages sub-path.
+    command: `OCTOPAGE_OFFLINE=1 pnpm build && SERVE_ROOT=dist VERCEL_JSON=vercel.json BASE_PATH=${BASE} PORT=${PORT} node scripts/serve.mjs`,
     url: `http://localhost:${PORT}${BASE}/`,
     reuseExistingServer: !process.env.CI,
     timeout: 180_000,

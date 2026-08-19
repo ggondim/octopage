@@ -1,0 +1,47 @@
+---
+import '@primer/react-brand/lib/css/main.css';
+import '@primer/react-brand/fonts/fonts.css';
+import '../styles/octopage.css';
+
+export interface Props {
+  title: string;
+  description?: string;
+  colorMode?: 'light' | 'dark' | 'auto';
+}
+
+const { title, description = '', colorMode = 'auto' } = Astro.props;
+
+// Site identity comes from astro.config.mjs, where Astro already keeps it.
+const siteTitle = Astro.site ? new URL(Astro.site).hostname : '';
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : Astro.url.href;
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    {description && <meta name="description" content={description} />}
+    <link rel="canonical" href={canonical} />
+
+    <meta property="og:title" content={title} />
+    {description && <meta property="og:description" content={description} />}
+    <meta property="og:url" content={canonical} />
+    <meta property="og:type" content="website" />
+
+    <link rel="sitemap" href={`${import.meta.env.BASE_URL}sitemap-index.xml`} />
+    <slot name="head" />
+  </head>
+
+  <!--
+    Primer Brand themes entirely through this attribute: ThemeProvider renders a
+    <div data-color-mode> plus a React context that, as of v0.73, no component
+    in the library reads. Setting it here rather than wrapping the tree in a
+    React island means every Primer component themes correctly without
+    hydrating, and without islands needing to share a context they cannot.
+  -->
+  <body data-color-mode={colorMode} data-site={siteTitle}>
+    <slot />
+  </body>
+</html>

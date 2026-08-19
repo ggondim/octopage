@@ -15,28 +15,40 @@ name: octopage-preview
 
 services:
   # ── GitHub Pages ─────────────────────────────────────────────────────────
-  # GitHub Pages serves through Jekyll, which is why this is the default. Even
-  # with `.nojekyll` set, the surrounding behaviour — directory indexes,
-  # 404.html, and above all the /<repo>/ path prefix on project sites — is what
-  # this reproduces. `dist/` is mounted *under* the base path rather than at the
-  # web root, because that prefix is baked into every asset URL Astro emits and
-  # serving at the root would make a broken build look fine.
+  # Reproduces the decision GitHub Pages makes before serving anything: if
+  # `.nojekyll` is present at the root of the published tree, Jekyll is skipped
+  # entirely and the files are served as-is; otherwise the tree is run through
+  # Jekyll first.
+  #
+  # That branch is the whole point. Jekyll drops every top-level path starting
+  # with an underscore, and Astro emits its assets into `_astro/` — so without
+  # `.nojekyll` the HTML still serves 200 while every stylesheet and script
+  # 404s, which is a miserable thing to discover in production.
+  #
+  # Note that `.nojekyll` is a *GitHub Pages* convention, not a Jekyll feature:
+  # Jekyll itself ignores the file, so emulating this requires checking for it
+  # here rather than just handing the directory to `jekyll serve`.
+  #
+  # `dist/` is mounted under the base path rather than at the web root, because
+  # that prefix is baked into every asset URL Astro emits.
   pages:
     profiles: ['pages']
     image: jekyll/jekyll:4.2.2
     # The image is published for amd64 only, so this runs under emulation on
-    # Apple Silicon: slow to pull and to boot, but faithful. Declared
-    # explicitly so Docker does not fail with an opaque platform mismatch.
+    # Apple Silicon: slower to pull and boot, but faithful.
     platform: linux/amd64
     working_dir: /srv/jekyll
     command: >
-      jekyll serve
-        --no-watch
-        --host 0.0.0.0
-        --port 4000
-        --destination /srv/_site
+      sh -lc "gem install webrick --no-document --silent;
+        if [ -f /srv/site/${OCTOPAGE_BASE:-octopage}/.nojekyll ]; then
+          echo '.nojekyll present — serving as-is, exactly as GitHub Pages does';
+          ruby -run -e httpd -- --bind-address=0.0.0.0 --port=4000 /srv/site;
+        else
+          echo 'no .nojekyll — running the tree through Jekyll (this is where _astro/ disappears)';
+          jekyll serve --no-watch --host 0.0.0.0 --port 4000 --destination /tmp/_site;
+        fi"
     volumes:
-      - ../template/dist:/srv/site/${OCTOPAGE_BASE:-octopage}:ro
+      - ../dist:/srv/site/${OCTOPAGE_BASE:-octopage}:ro
       - ./pages/_config.yml:/srv/jekyll/_config.yml:ro
     ports:
       - '4000:4000'
@@ -44,25 +56,22 @@ services:
       JEKYLL_ENV: production
 
   # ── Vercel ───────────────────────────────────────────────────────────────
-  # Vercel serves from the web root with no base path, applies `vercel.json`
-  # (cleanUrls, trailingSlash, redirects, headers), and has its own 404
-  # handling. A site that works on Pages can still 404 here purely because of
-  # the trailing-slash rule, which is exactly what this profile is for.
+  # Vercel serves from the web root with no base path and applies vercel.json
+  # (trailingSlash, cleanUrls, redirects, headers). A site that works on Pages
+  # can still break here purely on the base path, which is what this is for.
+  #
+  # Stock image plus a mounted script — no Dockerfile, so there is nothing to
+  # rebuild when the script changes.
   vercel:
     profiles: ['vercel']
-    build:
-      context: .
-      dockerfile: vercel.Dockerfile
-    working_dir: /site
+    image: node:22-alpine
+    working_dir: /repo
     volumes:
-      - ../template:/site
-      - vercel-node-modules:/site/node_modules
+      - ..:/repo:ro
     ports:
       - '3000:3000'
+    command: ['node', '/repo/scripts/serve.mjs']
     environment:
-      # `vercel dev` runs fully local without a token; set one only if you want
-      # it to link to a real project.
-      VERCEL_TOKEN: ${VERCEL_TOKEN:-}
-
-volumes:
-  vercel-node-modules:
+      SERVE_ROOT: /repo/dist
+      VERCEL_JSON: /repo/vercel.json
+      PORT: '3000'
