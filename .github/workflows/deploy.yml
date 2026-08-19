@@ -3,10 +3,12 @@ name: Deploy to GitHub Pages
 on:
   push:
     branches: [main]
-  # Content lives in Discussions, which change without any commit. Without this
-  # the site would only ever be as fresh as the last push.
-  discussion:
-    types: [created, edited, deleted, labeled, unlabeled, category_changed]
+  workflow_dispatch:
+
+  # Note there is deliberately no `discussion:` trigger. Discussion content is
+  # fetched in the reader's browser, so a new or edited discussion is live
+  # without any build — rebuilding on one would spend Actions minutes to publish
+  # a site that does not contain it.
   schedule:
     - cron: '17 5 * * *'
   workflow_dispatch:
