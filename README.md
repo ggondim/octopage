@@ -143,6 +143,10 @@ invokes Jekyll. The profile covers the other one.)
 The Jekyll image is published for amd64 only, so on Apple Silicon this profile
 runs under emulation — slow to pull and boot, but faithful.
 
+> **Unverified.** Both compose profiles are written and reviewed but have not
+> been run end to end yet. Treat them as a starting point rather than a
+> known-good setup.
+
 ## Testing
 
 ```bash
