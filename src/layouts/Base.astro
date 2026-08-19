@@ -35,13 +35,24 @@ const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site).href : As
   </head>
 
   <!--
-    Primer Brand themes entirely through this attribute: ThemeProvider renders a
-    <div data-color-mode> plus a React context that, as of v0.73, no component
-    in the library reads. Setting it here rather than wrapping the tree in a
-    React island means every Primer component themes correctly without
+    Primer Brand themes entirely through `data-color-mode`: ThemeProvider renders
+    a <div> carrying it, plus a React context that, as of v0.73, no component in
+    the library reads. Setting the attribute here rather than wrapping the tree
+    in a React island means every Primer component themes correctly without
     hydrating, and without islands needing to share a context they cannot.
+
+    `data-light-theme` and `data-dark-theme` are for @primer/react, the product
+    UI library, which resolves its own tokens from them whenever the colour mode
+    is `auto`. They are inert on their own — nothing here reads them — and cost
+    two attributes, which is less than the debugging session someone would spend
+    on product components rendering colourless. See docs/guide.md.
   -->
-  <body data-color-mode={colorMode} data-site={siteTitle}>
+  <body
+    data-color-mode={colorMode}
+    data-light-theme="light"
+    data-dark-theme="dark"
+    data-site={siteTitle}
+  >
     <slot />
   </body>
 </html>

@@ -418,6 +418,61 @@ JavaScript to every page that uses it. The
 Remember the compound-component rule: `Hero`, `Card` and friends must be composed
 inside a `.tsx`, never assembled from `.astro`.
 
+### Using Primer's product UI alongside Brand
+
+`@primer/react-brand` and `@primer/react` are different libraries. Brand is the
+marketing/editorial system this template is built on; **product UI** is the one
+that looks like github.com's application — `DataTable`, `ActionList`,
+`TreeView`, `Dialog`. They coexist on the same page, which is worth knowing if a
+post needs a real data table rather than a styled one.
+
+Their token namespaces do not collide (`--brand-*` against `--fgColor-*` /
+`--bgColor-*`), and the one attribute they share, `data-color-mode`, is read
+compatibly by both.
+
+Four steps, none of them obvious:
+
+**1. Install both packages directly.**
+
+```bash
+pnpm add @primer/react @primer/primitives
+```
+
+`@primer/primitives` arrives as a transitive dependency of `@primer/react`, but
+pnpm's strict layout keeps it out of the top level, so an import fails unless it
+is declared.
+
+**2. Import the token themes** in any page or layout using product UI:
+
+```astro
+import '@primer/primitives/dist/css/functional/themes/light.css';
+import '@primer/primitives/dist/css/functional/themes/dark.css';
+```
+
+Skip this and `--fgColor-*` / `--bgColor-*` are never defined: components render
+with unresolved variables and no colour at all. This is the failure that looks
+like the library is broken.
+
+**3. Add it to Vite's `noExternal`** in `src/lib/integration.ts`:
+
+```ts
+noExternal: ['@primer/react-brand', '@primer/react'],
+```
+
+Both libraries import their own stylesheets as side effects. Left external,
+Node's SSR loader reaches those `.css` files directly and the build dies with
+`Unknown file extension ".css"`.
+
+**4. The theme attributes are already set.** `src/layouts/Base.astro` carries
+`data-light-theme` and `data-dark-theme` alongside `data-color-mode`. Product UI
+resolves its tokens from those two whenever the colour mode is `auto`; Brand
+ignores them. They ship inert so this step is already done.
+
+Cost, measured: about +36 KB gzipped CSS on pages that use product UI, scoped to
+those pages rather than the shared bundle. The `@primer/primitives` package is
+large on disk (~56 MB) because it ships every theme variant, which is why it is
+not a default dependency here.
+
 ### Element mapping
 
 Markdown elements are mapped to Primer components in
