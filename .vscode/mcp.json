@@ -1,0 +1,9 @@
+{
+  "servers": {
+    "Primer Brand": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@primer/brand-mcp@latest"]
+    }
+  }
+}
