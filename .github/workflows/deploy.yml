@@ -1,16 +1,13 @@
 name: Deploy to GitHub Pages
 
+# Note there is deliberately no `discussion:` trigger and no schedule.
+# Discussion content is fetched in the reader's browser, so a new or edited
+# discussion is already live — rebuilding on one, or nightly, would spend
+# Actions minutes republishing a site whose output does not contain it either
+# way. Only committed content needs a build.
 on:
   push:
     branches: [main]
-  workflow_dispatch:
-
-  # Note there is deliberately no `discussion:` trigger. Discussion content is
-  # fetched in the reader's browser, so a new or edited discussion is live
-  # without any build — rebuilding on one would spend Actions minutes to publish
-  # a site that does not contain it.
-  schedule:
-    - cron: '17 5 * * *'
   workflow_dispatch:
 
 permissions:
