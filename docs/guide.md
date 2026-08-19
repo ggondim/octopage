@@ -155,8 +155,8 @@ location.pathname.length < 2
 ```
 
 It drops the leading slash and a file extension, but **keeps the trailing slash**
-and **includes the deploy base path**. So a page at `/octopage/blog/post/` pairs
-on `octopage/blog/post/`. Deriving that string any other way is the easiest way
+and **includes the deploy base path**. So a page at `/blog/post/` pairs on `blog/post/`, and the same page on a
+project page under `/repo` pairs on `repo/blog/post/` instead. Deriving that string any other way is the easiest way
 to end up with every page showing an empty comment box.
 
 ### Setup
@@ -310,8 +310,12 @@ reads only public endpoints.
 ```js
 // astro.config.mjs
 site: 'https://you.github.io',
-base: '/your-repo',        // drop this for a user site or a custom domain
+// no `base` — the shipped default is a root deploy, which is what a user or
+// organisation page, a custom domain and Vercel all need
 ```
+
+A Pages **project** page (`you.github.io/your-repo`) is the exception: add
+`base: '/your-repo'`.
 
 Then set **Settings → Pages → Source** to **GitHub Actions**.
 
@@ -330,22 +334,23 @@ needs. Do not replace it with a static error page.
 
 ### Vercel
 
-Works, with one change — and it is not optional:
+Works unchanged, since the shipped config already deploys from the root. Only
+the origin needs updating:
 
 ```js
 site: 'https://your-domain.com',
-// base removed entirely
 ```
 
-`base` is compiled into every asset URL. A build made for a Pages project site
+If you had added a `base` for a Pages project page, remove it. `base` is
+compiled into every asset URL. A build made for a Pages project site
 (`/repo`) 404s every stylesheet and script when served from a web root, while the
 pages themselves still return 200 — so it looks like it works. Measured over the
 same `dist/`:
 
-| built with `base: '/octopage'` | pages | assets |
+| a build made for one, served by the other | pages | assets |
 |---|---|---|
-| `pnpm preview:pages` | 200 | 200 |
-| `pnpm preview:vercel` | 200 | **404** |
+| built for `/repo`, served at the root | 200 | **404** |
+| built for the root, served under `/repo` | 200 | **404** |
 
 [`vercel.json`](../vercel.json) carries `trailingSlash`, which must agree with
 `build.format` in astro.config.mjs — giscus pairs committed pages on the exact

@@ -17,9 +17,10 @@
     "typecheck": "astro check",
     "preview:pages": "pnpm build && docker compose -f docker/docker-compose.yml --profile pages up",
     "preview:vercel": "pnpm build && docker compose -f docker/docker-compose.yml --profile vercel up",
-    "preview:down": "docker compose -f docker/docker-compose.yml --profile pages --profile vercel down",
+    "preview:down": "docker compose -f docker/docker-compose.yml --profile pages --profile pages-jekyll --profile vercel down",
     "test": "playwright test",
-    "test:ui": "playwright test --ui"
+    "test:ui": "playwright test --ui",
+    "preview:jekyll": "pnpm build && docker compose -f docker/docker-compose.yml --profile pages-jekyll up"
   },
   "dependencies": {
     "@astrojs/mdx": "^7.0.7",

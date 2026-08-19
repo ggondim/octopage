@@ -10,7 +10,8 @@ server.
   build at all.
 - **Comments** are Discussions threads rendered by [giscus](https://giscus.app).
 - **UI** is [GitHub Primer Brand](https://primer.style/brand).
-- **Deploy** targets GitHub Pages; Vercel works too, with its own `base`.
+- **Deploy** targets GitHub Pages, from the site root by default; Vercel and
+  custom domains work with the same build.
 
 ## Quick start
 
@@ -119,7 +120,7 @@ Almost nothing. `octopage.config.ts` with `{}` is a complete configuration.
 |---|---|
 | Repository | the `origin` git remote, or `GITHUB_REPOSITORY` in Actions |
 | giscus repo id / category id | the public REST API — no token needed |
-| Site URL and base path | `astro.config.mjs` (`site`, `base`) |
+| Site URL and base path | `astro.config.mjs` (`site`, `base` — defaults to the root) |
 | Site name and tagline | `package.json` (`name`, `description`) |
 | Comment category | `Announcements` if it exists, else the first usable one |
 
@@ -166,19 +167,26 @@ pnpm preview:vercel    # Vercel
 pnpm preview:down
 ```
 
-### The same build cannot serve both hosts
+### `base` decides which host a build works on
 
-GitHub Pages project sites live under `/<repo>`; Vercel serves from the web
-root. `base` is compiled into every asset URL, so a build made for one 404s
-every stylesheet and script on the other — while still returning 200 for the
-pages themselves, which makes it look like it works.
+The shipped config deploys from the site root, which is what a user or
+organisation page (`<name>.github.io`), a custom domain and Vercel all need. One
+setup differs: a GitHub Pages **project** page lives under `/<repo>`, and needs
+`base: '/your-repo'` in astro.config.mjs.
 
-| Built with `base: '/octopage'` | pages | assets |
+That value is compiled into every asset URL, so a build made for one shape 404s
+every stylesheet and script on the other:
+
+| | pages | assets |
 |---|---|---|
-| `preview:pages` | 200 | 200 |
-| `preview:vercel` | 200 | **404** |
+| built for `/repo`, served at the root | 200 | **404** |
+| built for the root, served under `/repo` | 200 | **404** |
 
-Deploying to Vercel means building with `base: '/'`.
+The pages return 200 either way, which is what makes it easy to miss. Run
+`pnpm preview:pages` to see it before deploying.
+
+`base` also feeds comment pairing: giscus derives a committed page's thread from
+the full pathname, base included. Changing it later orphans existing threads.
 
 ### What the `pages` profile is really testing
 

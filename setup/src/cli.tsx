@@ -100,7 +100,9 @@ function App() {
         setRepo(detected);
         setTitle(detected.name);
         setUrl(`https://${detected.owner}.github.io`);
-        setBase(`/${detected.name}`);
+        // Root deploy by default: it is what a user/org page, a custom domain
+        // and Vercel all need. A project page is the exception.
+        setBase('/');
 
         if (!t) {
           setError(
@@ -188,7 +190,7 @@ function App() {
       {step === 'base' && (
         <Field
           label="Base path"
-          hint="/<repo> for a project page; / for a user site, custom domain or Vercel"
+          hint="/ for a user or org page, custom domain or Vercel; /<repo> for a project page"
           value={base}
           onChange={setBase}
           onSubmit={() => setStep('comments')}

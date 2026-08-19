@@ -15,43 +15,60 @@ name: octopage-preview
 
 services:
   # ── GitHub Pages ─────────────────────────────────────────────────────────
-  # Reproduces the decision GitHub Pages makes before serving anything: if
-  # `.nojekyll` is present at the root of the published tree, Jekyll is skipped
-  # entirely and the files are served as-is; otherwise the tree is run through
-  # Jekyll first.
+  # How the site is actually served once `.nojekyll` is present: files as-is,
+  # under the deploy base path, with 404.html returned for any path that has no
+  # file.
   #
-  # That branch is the whole point. Jekyll drops every top-level path starting
-  # with an underscore, and Astro emits its assets into `_astro/` — so without
-  # `.nojekyll` the HTML still serves 200 while every stylesheet and script
-  # 404s, which is a miserable thing to discover in production.
+  # That last part is load-bearing here, not a detail. Discussion-backed pages
+  # have no file on disk by design — 404.html is what resolves them — so a
+  # preview without the fallback shows a broken site for exactly the half of the
+  # content this project added most recently.
   #
-  # Note that `.nojekyll` is a *GitHub Pages* convention, not a Jekyll feature:
-  # Jekyll itself ignores the file, so emulating this requires checking for it
-  # here rather than just handing the directory to `jekyll serve`.
-  #
-  # `dist/` is mounted under the base path rather than at the web root, because
-  # that prefix is baked into every asset URL Astro emits.
+  # Same server as the vercel profile, differing only in BASE_PATH.
   pages:
     profiles: ['pages']
-    image: jekyll/jekyll:4.2.2
-    # The image is published for amd64 only, so this runs under emulation on
-    # Apple Silicon: slower to pull and boot, but faithful.
-    platform: linux/amd64
-    working_dir: /srv/jekyll
-    command: >
-      sh -lc "gem install webrick --no-document --silent;
-        if [ -f /srv/site/${OCTOPAGE_BASE:-octopage}/.nojekyll ]; then
-          echo '.nojekyll present — serving as-is, exactly as GitHub Pages does';
-          ruby -run -e httpd -- --bind-address=0.0.0.0 --port=4000 /srv/site;
-        else
-          echo 'no .nojekyll — running the tree through Jekyll (this is where _astro/ disappears)';
-          jekyll serve --no-watch --host 0.0.0.0 --port 4000 --destination /tmp/_site;
-        fi"
+    image: node:22-alpine
+    working_dir: /repo
     volumes:
-      - ../dist:/srv/site/${OCTOPAGE_BASE:-octopage}:ro
-      - ./pages/_config.yml:/srv/jekyll/_config.yml:ro
+      - ..:/repo:ro
     ports:
       - '4000:4000'
+    command: ['node', '/repo/scripts/serve.mjs']
+    environment:
+      SERVE_ROOT: /repo/dist
+      VERCEL_JSON: /repo/vercel.json
+      # Empty for a root deploy; set to '/your-repo' for a Pages project page.
+      BASE_PATH: ${OCTOPAGE_BASE:-}
+      PORT: '4000'
+
+  # ── GitHub Pages, without .nojekyll ──────────────────────────────────────
+  # The failure mode, on demand. GitHub Pages runs branch deploys through
+  # Jekyll, which drops every top-level path starting with an underscore —
+  # including Astro's `_astro/`. The pages still return 200 while every
+  # stylesheet and script 404s, which is a miserable thing to discover in
+  # production.
+  #
+  # `public/.nojekyll` is what prevents it. Note Jekyll itself ignores that
+  # file: it is a GitHub Pages convention, which is why this is a separate
+  # profile rather than something the `pages` profile could detect.
+  #
+  #   docker compose --profile pages-jekyll up
+  #
+  # The image is amd64-only, so this runs under emulation on Apple Silicon.
+  pages-jekyll:
+    profiles: ['pages-jekyll']
+    image: jekyll/jekyll:4.2.2
+    platform: linux/amd64
+    working_dir: /srv/jekyll
+    # webrick left Ruby's stdlib in 3.0 and this image never added it back.
+    command: >
+      sh -lc "gem install webrick --no-document --silent &&
+        jekyll serve --no-watch --host 0.0.0.0 --port 4001 --destination /tmp/_site"
+    volumes:
+      - ../dist:/srv/site:ro
+      - ./pages/_config.yml:/srv/jekyll/_config.yml:ro
+    ports:
+      - '4001:4001'
     environment:
       JEKYLL_ENV: production
 

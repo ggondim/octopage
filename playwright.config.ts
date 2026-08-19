@@ -7,7 +7,10 @@ import { defineConfig, devices } from '@playwright/test';
  * local site breaks on GitHub Pages — are actually reachable by these tests.
  */
 const PORT = 4321;
-const BASE = '/octopage';
+// Matches `base` in astro.config.mjs. The suite serves the built site the way
+// the configured host would, so a base-path mistake fails a test rather than a
+// deploy.
+export const BASE = '';
 
 export default defineConfig({
   testDir: './e2e',

@@ -6,10 +6,15 @@ import octopage from './src/lib/integration.ts';
 import octopageConfig from './octopage.config.ts';
 
 export default defineConfig({
-  // Where the site is published. `base` is the repository name for a GitHub
-  // Pages project site; drop it for a user site, a custom domain, or Vercel.
-  site: 'https://ggondim.github.io',
-  base: '/octopage',
+  // Where the site is published. Serving from the root is the default because
+  // it is the only setup that works everywhere: a user or organisation page
+  // (`<name>.github.io`), a custom domain, and Vercel all serve from `/`.
+  //
+  // A GitHub Pages *project* page is the exception — it lives under `/<repo>`,
+  // so add `base: '/your-repo'` for that. Be aware it changes more than asset
+  // URLs: giscus derives a committed page's comment thread from the full
+  // pathname, base included, so changing it later orphans existing threads.
+  site: 'https://octopage.github.io',
 
   // `directory` serves /blog/post/ with a trailing slash. giscus reads
   // location.pathname verbatim to find the thread for a committed page, so this

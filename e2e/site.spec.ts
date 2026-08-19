@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { BASE } from '../playwright.config.ts';
 
 test.describe('rendering', () => {
   test('home lists content and applies the Primer theme attribute', async ({ page }) => {
@@ -62,9 +63,11 @@ test.describe('routing', () => {
     const firstParty = hrefs.filter((href) => href.startsWith('/'));
 
     expect(firstParty.length).toBeGreaterThan(0);
-    // A base-path regression makes these absolute-from-root and the deployed
-    // project site loses all styling while localhost looks perfect.
-    for (const href of firstParty) expect(href).toMatch(/^\/octopage\//);
+    // Asserted against the configured base rather than a literal, so this keeps
+    // catching the regression whichever way the site is deployed: an asset URL
+    // that loses its base 404s on a project page, and one that gains a base it
+    // should not have 404s at a root deploy. Both look perfect on localhost.
+    for (const href of firstParty) expect(href.startsWith(`${BASE}/`)).toBe(true);
   });
 });
 
@@ -84,7 +87,7 @@ test.describe('custom URL tree', () => {
     await page.goto('writing/');
     // Astro applies `base` to the redirect source but emits the destination
     // verbatim, so this is the assertion that catches a target losing its base
-    // and 404ing only once deployed to a project page.
-    await expect(page).toHaveURL(/\/octopage\/blog\/hello-octopage/);
+    // and 404ing only once deployed under one.
+    await expect(page).toHaveURL(new RegExp(`${BASE}/blog/hello-octopage`));
   });
 });
