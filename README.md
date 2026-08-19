@@ -130,6 +130,19 @@ docker compose -f docker/docker-compose.yml --profile pages up    # GitHub Pages
 docker compose -f docker/docker-compose.yml --profile vercel up   # Vercel
 ```
 
+The `pages` profile runs Jekyll with processing **on**, which is the point:
+GitHub Pages passes branch-based deploys through Jekyll, and Jekyll drops every
+top-level path starting with an underscore — including Astro's `_astro/`. A site
+deployed that way loses all of its CSS and JS unless `.nojekyll` is present.
+`template/public/.nojekyll` is what prevents it; delete it and this preview shows
+you the broken site rather than production doing so.
+
+(The included workflow uploads a Pages artifact instead, a path that never
+invokes Jekyll. The profile covers the other one.)
+
+The Jekyll image is published for amd64 only, so on Apple Silicon this profile
+runs under emulation — slow to pull and boot, but faithful.
+
 ## Testing
 
 ```bash

@@ -24,14 +24,17 @@ services:
   pages:
     profiles: ['pages']
     image: jekyll/jekyll:4.2.2
+    # The image is published for amd64 only, so this runs under emulation on
+    # Apple Silicon: slow to pull and to boot, but faithful. Declared
+    # explicitly so Docker does not fail with an opaque platform mismatch.
+    platform: linux/amd64
     working_dir: /srv/jekyll
     command: >
       jekyll serve
-        --skip-initial-build
         --no-watch
         --host 0.0.0.0
         --port 4000
-        --destination /srv/site
+        --destination /srv/_site
     volumes:
       - ../template/dist:/srv/site/${OCTOPAGE_BASE:-octopage}:ro
       - ./pages/_config.yml:/srv/jekyll/_config.yml:ro

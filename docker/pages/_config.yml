@@ -1,10 +1,17 @@
-# Jekyll is only acting as the web server here — the site is already built by
-# Astro. Processing is disabled so Jekyll cannot rewrite, exclude or re-render
-# anything in dist/ and give a misleading preview.
+# Jekyll runs here with processing ON, on purpose.
+#
+# GitHub Pages passes branch-based deploys through Jekyll, and Jekyll excludes
+# every top-level path beginning with an underscore. Astro emits its assets into
+# `_astro/`, so an Astro site deployed from a branch loses all of its CSS and JS
+# unless a `.nojekyll` file is present — which is exactly the failure this
+# profile exists to surface locally instead of in production.
+#
+# `template/public/.nojekyll` is what prevents it, and it is copied into dist/
+# by the build. Delete it and this preview will show you the broken site.
+#
+# (The workflow in .github/workflows/deploy.yml uploads a Pages artifact
+# instead, a path that never invokes Jekyll. This profile covers the other one.)
 source: /srv/site
-destination: /srv/site
+destination: /srv/_site
 incremental: false
-safe: false
 plugins: []
-exclude: []
-keep_files: ['.']
