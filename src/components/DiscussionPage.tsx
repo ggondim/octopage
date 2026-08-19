@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Heading, Label, Stack, Text } from '@primer/react-brand';
 import { evaluate } from '@mdx-js/mdx';
+import remarkGfm from 'remark-gfm';
 import * as runtime from 'react/jsx-runtime';
 import type { ComponentType } from 'react';
 import {
@@ -58,6 +59,10 @@ export function DiscussionPage({ repo, config, base, giscus }: DiscussionPagePro
 
         const { default: Body } = await evaluate(post.body, {
           ...(runtime as Record<string, unknown>),
+          // Astro enables GFM for committed .mdx, but a bare MDX compile does
+          // not. Without this, a table written in GitHub's editor — where GFM is
+          // simply how markdown works — renders as literal pipe characters.
+          remarkPlugins: [remarkGfm],
           baseUrl: location.href,
           development: false,
         } as never);

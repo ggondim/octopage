@@ -105,6 +105,12 @@ write access — who could ship malicious JavaScript by pushing a commit anyway.
 Comment threads are told apart from content by the `<!-- sha1: … -->` marker
 giscus embeds, so both can share a category without colliding.
 
+## Documentation
+
+- **[The octopage guide](docs/guide.md)** — why this stack, how to author content,
+  how to publish, and how styling works.
+- [Configuration reference](docs/configuration.md)
+
 ## Configuration
 
 Almost nothing. `octopage.config.ts` with `{}` is a complete configuration.

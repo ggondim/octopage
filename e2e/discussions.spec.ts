@@ -100,3 +100,21 @@ test('an unreachable API leaves a readable page, not a blank one', async ({ page
 
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Could not load');
 });
+
+test('GitHub Flavoured Markdown renders in a discussion body', async ({ page }) => {
+  // GitHub's editor is where these are written, so GFM is simply how markdown
+  // works to an author. Astro enables it for committed files; a bare MDX
+  // compile does not, and without remark-gfm a table renders as pipes.
+  await serve(page, [
+    discussion({
+      body: '| a | b |\n|---|---|\n| 1 | 2 |\n\n~~gone~~\n\n- [x] done',
+    }),
+  ]);
+
+  await page.goto('content/announcements/42/');
+  await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
+
+  await expect(page.locator('table')).toHaveCount(1);
+  await expect(page.locator('del')).toHaveText('gone');
+  await expect(page.locator('input[type=checkbox]')).toHaveCount(1);
+});
